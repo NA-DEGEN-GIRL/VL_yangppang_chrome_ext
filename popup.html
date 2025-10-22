@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hedge Trader</title>
+    <style>
+        body { font-family: sans-serif; width: 250px; padding: 10px; }
+        .input-group { margin-bottom: 10px; }
+        label { display: block; margin-bottom: 5px; }
+        input { width: 95%; padding: 5px; }
+        button { width: 100%; padding: 8px; margin-top: 5px; cursor: pointer; }
+        .button-group { display: flex; gap: 5px; }
+    </style>
+</head>
+<body>
+    <div class="input-group">
+        <label for="coinSymbol">Coin Symbol (e.g., ETH, SOL):</label>
+        <div class="button-group">
+            <input type="text" id="coinSymbol" placeholder="BTC">
+            <button id="setCoinBtn">Set</button>
+        </div>
+    </div>
+
+    <hr>
+
+    <div class="input-group">
+        <label for="quantity">Quantity:</label>
+        <input type="text" id="quantity" placeholder="0.001">
+    </div>
+
+    <div class="button-group">
+        <button id="lBuyVSell">L-Buy, V-Sell</button>
+        <button id="lSellVBuy">L-Sell, V-Buy</button>
+    </div>
+
+    <button id="submitOrder">Submit Order</button>
+
+    <script src="popup.js"></script>
+</body>
+</html>
