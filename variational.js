@@ -75,30 +75,224 @@ function clickSubmitButton() {
         console.error("오류: 제출 버튼('[data-testid=\"submit-button\"]')을 찾을 수 없음.");
     }
 }
+
 function getPositions(coinFilter = null) {
     let positions = [];
+    let layoutMode = 'unknown';
+
+    // 1. Svelte 레이아웃 (새 사이트) 시도
     let positionRows = document.querySelectorAll('div[data-testid="positions-table-row"]');
-    if (positionRows.length === 0) return positions;
-    
-    positionRows.forEach((row) => {
+    if (positionRows.length > 0) {
+        layoutMode = 'svelte';
+    } else {
+        // 2. <table> 레이아웃 (기존 사이트 넓은 화면) 시도
+        positionRows = document.querySelectorAll('tbody tr[data-testid^="row-"]');
+        if (positionRows.length > 0) {
+            layoutMode = 'table';
+        } else {
+            // 3. <div> 레이아웃 (기존 사이트 좁은 화면) 시도
+            positionRows = document.querySelectorAll('div[data-index]');
+            if (positionRows.length > 0) {
+                layoutMode = 'div';
+            }
+        }
+    }
+
+    // 4. 공통 파싱 로직 실행
+    if (layoutMode === 'unknown' || positionRows.length === 0) {
+        console.log("포지션 목록을 찾을 수 없음. (관련 DOM 요소를 찾지 못함)");
+        return positions; // 빈 배열 반환
+    }
+
+    console.log(`레이아웃 감지됨: ${layoutMode.toUpperCase()}`);
+
+    positionRows.forEach((row, index) => {
         try {
-            const coinSpan = row.querySelector('span[title$="-PERP"]');
-            if (!coinSpan) return;
+            let coinName = null;
+            let positionSize = null;
+            let unrealizedPnl = null; // PnL 변수 추가
+            let funding = null; // Funding 변수 추가
 
-            const coinName = coinSpan.getAttribute('title').replace('-PERP', '').trim();
+            // --- SVELTE layout parsing ---
+            if (layoutMode === 'svelte') {
+                const cells = row.querySelectorAll(':scope > div'); // 직계 자식 div (컬럼)
+                if (cells.length < 9) { // Funding은 9번째(index 8) 셀
+                    console.warn(`행 ${index}: 셀 구조가 예상과 다름 (9개 미만).`);
+                    return;
+                }
+                
+                const coinSpan = cells[0].querySelector('span[title$="-PERP"]');
+                if (!coinSpan) {
+                    console.warn(`행 ${index}: 코인 이름 span을 찾을 수 없음.`);
+                    return;
+                }
+                
+                coinName = coinSpan.getAttribute('title').replace('-PERP', '').trim();
+                positionSize = cells[1].textContent.trim(); // 2번째 셀
+                
+                // PnL (8번째 셀, index 7)
+                const pnlCell = cells[7];
+                const pnlSpan = pnlCell.querySelector('span.text-ellipsis'); // <span class="text-ellipsis overflow-hidden">-$4.03</span>
+                if (pnlSpan) {
+                    unrealizedPnl = pnlSpan.textContent.trim();
+                } else {
+                    console.warn(`행 ${index} (${coinName}): PnL span을 찾을 수 없음.`);
+                    unrealizedPnl = 0;
+                }
+
+                // Funding (9번째 셀, index 8)
+                const fundingCell = cells[8];
+                funding = fundingCell.textContent.trim();
+                if (!funding) {
+                    console.warn(`행 ${index} (${coinName}): Funding 값을 찾을 수 없음.`);
+                    funding = 0;
+                }
+
+
+            // --- 기존 layouts parsing ---
+            } else {
+                const directionDiv = row.querySelector('[data-testid="direction-long"], [data-testid="direction-short"]');
+                if (!directionDiv) {
+                    console.warn(`행 ${index}: 방향(Long/Short) 요소를 찾을 수 없음.`);
+                    return;
+                }
+                const isLong = directionDiv.dataset.testid === 'direction-long';
+                coinName = directionDiv.nextElementSibling.textContent.trim();
+
+                let quantity = null;
+                if (layoutMode === 'table') {
+                    // Table-specific logic
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length < 9) { // Funding은 9번째(index 8) 셀
+                        console.warn(`행 ${index} (${coinName}): 셀(td) 구조가 예상과 다름 (9개 미만).`);
+                        return; 
+                    }
+                    // Size (2번째 셀, index 1)
+                    const sizeCell = cells[1];
+                    const sizeSpan = sizeCell.querySelector('div > span:first-child'); 
+                    if (!sizeSpan) {
+                         console.warn(`행 ${index} (${coinName}): 크기(Size) 값을 찾을 수 없음.`);
+                        return; 
+                    }
+                    quantity = sizeSpan.textContent.trim();
+
+                    // PnL (7번째 셀, index 6)
+                    const pnlCell = cells[6];
+                    const pnlDiv = pnlCell.querySelector('div');
+                    if (pnlDiv && pnlDiv.firstChild && pnlDiv.firstChild.nodeType === Node.TEXT_NODE) {
+                        unrealizedPnl = pnlDiv.firstChild.textContent.trim(); // "$0.78 (0.36%)"
+                    } else {
+                        console.warn(`행 ${index} (${coinName}): PnL div를 찾을 수 없음.`);
+                        unrealizedPnl = 0;
+                    }
+                    
+                    // Funding (9번째 셀, index 8)
+                    const fundingCell = cells[8];
+                    const fundingDiv = fundingCell.querySelector('div');
+                    if (fundingDiv && fundingDiv.textContent) {
+                        funding = fundingDiv.textContent.trim();
+                    } else {
+                         console.warn(`행 ${index} (${coinName}): Funding div를 찾을 수 없음.`);
+                        funding = 0;
+                    }
+
+                } else { // layoutMode === 'div'
+                    const buttons = Array.from(row.querySelectorAll('button')); // 'div' 모드일 때만 buttons 배열 생성
+                    // Size button
+                    const sizeButton = buttons.find(btn => 
+                        btn.querySelector('span') && 
+                        btn.querySelector('span').textContent.trim() === 'Size'
+                    );
+                    if (!sizeButton) {
+                        console.warn(`행 ${index} (${coinName}): 크기(Size) 버튼을 찾을 수 없음.`);
+                        return; 
+                    }
+                    const sizeSpan = sizeButton.querySelector('div > span:first-child');
+                    if (!sizeSpan) {
+                         console.warn(`행 ${index} (${coinName}): 크기(Size) 값을 찾을 수 없음.`);
+                        return; 
+                    }
+                    quantity = sizeSpan.textContent.trim();
+
+                    // PnL button
+                    const pnlButton = buttons.find(btn => 
+                        btn.querySelector('span') && 
+                        btn.querySelector('span').textContent.trim() === 'Unrealized PnL'
+                    );
+                    
+                    if (pnlButton) {
+                        const pnlDiv = pnlButton.querySelector('div');
+                        if (pnlDiv && pnlDiv.firstChild && pnlDiv.firstChild.nodeType === Node.TEXT_NODE) {
+                            unrealizedPnl = pnlDiv.firstChild.textContent.trim(); // "-$6.11 (-2.79%)"
+                        } else {
+                            unrealizedPnl = 0;
+                        }
+                    } else {
+                        console.warn(`행 ${index} (${coinName}): PnL 버튼을 찾을 수 없음.`);
+                        unrealizedPnl = 0;
+                    }
+                    
+                    // Funding button
+                    const fundingButton = buttons.find(btn => 
+                        btn.querySelector('span') && 
+                        btn.querySelector('span').textContent.trim() === 'Funding'
+                    );
+
+                    if (fundingButton) {
+                        const fundingDiv = fundingButton.querySelector('div');
+                        if (fundingDiv && fundingDiv.textContent) {
+                            funding = fundingDiv.textContent.trim();
+                        } else {
+                            funding = 0;
+                        }
+                    } else {
+                        console.warn(`행 ${index} (${coinName}): Funding 버튼을 찾을 수 없음.`);
+                        funding = 0;
+                    }
+                }
+                
+                if (quantity) {
+                    positionSize = isLong ? quantity : `-${quantity}`;
+                }
+            }
+
+            // --- 필터링 로직 ---
             if (coinFilter && coinName.toUpperCase() !== coinFilter.toUpperCase()) {
-                return;
+                return; // 다음 행으로 넘어감
             }
 
-            const cells = row.querySelectorAll(':scope > div');
-            if (cells.length < 2) return;
-            const positionSize = cells[1].textContent.trim();
-            
-            if (coinName && positionSize) {
-                positions.push({ coin: coinName, position: positionSize });
+            // --- 공통 로직: 결과 포맷팅 ---
+            if (coinName && positionSize && unrealizedPnl && funding) {
+                positions.push({
+                    coin: coinName,
+                    position: positionSize,
+                    pnl: unrealizedPnl, // PnL 추가
+                    funding: funding // Funding 추가
+                });
             }
-        } catch (e) { console.error(`포지션 파싱 중 오류:`, e); }
+
+        } catch (e) {
+            console.error(`행 ${index} (${layoutMode}) 파싱 중 오류 발생:`, e, row);
+        }
     });
+
+    // 5. 최종 결과 출력
+    if (positions.length > 0) {
+        if (coinFilter) {
+            console.log(`--- 현재 포지션 (${coinFilter.toUpperCase()}만) ---`);
+        } else {
+            console.log("--- 현재 포지션 (전체) ---");
+        }
+        console.table(positions);
+    } else {
+        if (coinFilter) {
+            console.log(`'${coinFilter}' 포지션을 찾을 수 없음.`);
+        } else {
+            console.log("파싱된 포지션이 없음.");
+        }
+    }
+
+    // 6. 파싱된 결과를 배열로 반환
     return positions;
 }
 
