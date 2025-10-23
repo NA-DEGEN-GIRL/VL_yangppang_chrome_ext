@@ -328,7 +328,77 @@ function getPositions(coinFilter = null) {
     return positions;
 }
 
+/**
+ * 페이지 상단의 포트폴리오 가치 또는 Trading Equity를 가져와서 출력하고 반환하는 함수.
+ * (여러 사이트 호환)
+ * @returns {string | null} 포트폴리오 가치 (예: "$12,019.10") 또는 찾지 못할 경우 null.
+ */
+function getPortfolioValue() {
+    
+    // --- 방법 1: data-testid="portfolio-summary" (Svelte 사이트) ---
+    const portfolioContainer = document.querySelector('[data-testid="portfolio-summary"]');
+    
+    if (portfolioContainer) {
+        try {
+            const portfolioSection = portfolioContainer.querySelector('div.flex-col');
+            if (!portfolioSection) {
+                console.error("오류 (방법 1): 포트폴리오 섹션(div.flex-col)을 찾을 수 없음.");
+                // 방법 1 실패 시, 방법 2로 넘어갈 수 있도록 return null;을 제거
+            } else {
+                const valueSpan = portfolioSection.querySelector('div > span.tabular-nums');
+                if (!valueSpan) {
+                    console.error("오류 (방법 1): 포트폴리오 값(span.tabular-nums)을 찾을 수 없음.");
+                } else {
+                    const portfolioValue = valueSpan.textContent.trim();
+                    console.log(`포트폴리오 가치 (방법 1): ${portfolioValue}`);
+                    return portfolioValue; // 성공 시 즉시 반환
+                }
+            }
+        } catch (e) {
+            console.error("포트폴리오 값 (방법 1) 파싱 중 오류 발생:", e);
+            // 방법 1 실패 시, 방법 2로 넘어감
+        }
+    }
+
+    // --- 방법 2: "Trading Equity:" 텍스트 (다른 사이트) ---
+    try {
+        // 페이지 내의 모든 <p> 태그를 순회
+        const allParagraphs = document.querySelectorAll('p');
+        let tradingEquityValue = null;
+
+        allParagraphs.forEach(p => {
+            if (p.textContent.trim() === 'Trading Equity:') {
+                // p 태그를 감싸고 있는 row 컨테이너 (.flex.w-full.justify-between)를 찾음
+                const rowContainer = p.closest('.flex.w-full.justify-between');
+                if (rowContainer) {
+                    // 해당 row 컨테이너 안에서 값을 담고 있는 span을 찾음
+                    const valueSpan = rowContainer.querySelector('.tabular-nums span');
+                    if (valueSpan) {
+                        tradingEquityValue = valueSpan.textContent.trim();
+                    }
+                }
+            }
+        });
+
+        if (tradingEquityValue) {
+            console.log(`Trading Equity (방법 2): ${tradingEquityValue}`);
+            return tradingEquityValue;
+        }
+
+        // --- 두 방법 모두 실패 ---
+        console.error("오류: 포트폴리오 컨테이너(방법 1) 또는 'Trading Equity:'(방법 2)를 찾을 수 없음.");
+        return null;
+
+    } catch (e) {
+        console.error("Trading Equity (방법 2) 파싱 중 오류 발생:", e);
+        return null;
+    }
+}
+
+
+
 window.setQuantity = setQuantity;
 window.selectOrderType = selectOrderType;
 window.clickSubmitButton = clickSubmitButton;
 window.getPositions = getPositions; // getPositions 함수를 window에 할당 (추가된 부분)
+window.getPortfolioValue = getPortfolioValue;

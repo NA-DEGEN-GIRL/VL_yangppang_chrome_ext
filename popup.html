@@ -11,24 +11,28 @@
         .button-group { display: flex; gap: 5px; }
         hr { border: 0; border-top: 1px solid #ccc; margin: 15px 0; }
         
-        /* 포지션 테이블 스타일 (수정된 부분) */
-        #position-table {
+        /* 테이블 공통 스타일 */
+        .info-table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 15px;
             font-size: 12px;
         }
-        #position-table th, #position-table td {
+        .info-table th, .info-table td {
             border: 1px solid #ddd;
             padding: 6px;
             text-align: right;
         }
-        #position-table th {
+        .info-table th {
             background-color: #f2f2f2;
             text-align: center;
         }
-        #position-table td:first-child {
+        .info-table td:first-child {
             text-align: left;
+            font-weight: bold;
+        }
+        /* Balance 테이블의 마지막 행 스타일 */
+        #balance-table .total-row td {
             font-weight: bold;
         }
     </style>
@@ -42,8 +46,8 @@
         </div>
     </div>
 
-    <!-- 포지션 표시 테이블 (수정된 부분) -->
-    <table id="position-table">
+    <!-- 포지션 테이블 -->
+    <table id="position-table" class="info-table">
         <thead>
             <tr>
                 <th>Exchange</th>
@@ -64,6 +68,30 @@
                 <td id="variational-size">0.0000</td>
                 <td id="variational-pnl">0.0</td>
                 <td id="variational-funding">0.0</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Balance 테이블 (수정된 부분) -->
+    <table id="balance-table" class="info-table">
+        <thead>
+            <tr>
+                <th>Exchange</th>
+                <th>Balance</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Lighter</td>
+                <td id="lighter-balance">$0.00</td>
+            </tr>
+            <tr>
+                <td>Variational</td>
+                <td id="variational-balance">$0.00</td>
+            </tr>
+            <tr class="total-row">
+                <td>Total Balance</td>
+                <td id="total-balance">$0.00</td>
             </tr>
         </tbody>
     </table>

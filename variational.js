@@ -1,4 +1,4 @@
-ari// https://omni.variational.io/perpetual/BTC
+// https://omni.variational.io/perpetual/BTC
 // BTC 예시
 
 /**
@@ -191,7 +191,49 @@ function getPositions(coinFilter = null) {
     return positions;
 }
 
+/**
+ * 페이지 상단의 포트폴리오 가치를 가져와서 출력하고 반환하는 함수.
+ * @returns {string | null} 포트폴리오 가치 (예: "$12,019.10") 또는 찾지 못할 경우 null.
+ */
+function getPortfolioValue() {
+    // 1. data-testid="portfolio-summary"를 가진 컨테이너를 찾음
+    const portfolioContainer = document.querySelector('[data-testid="portfolio-summary"]');
+    
+    if (!portfolioContainer) {
+        console.error("오류: 포트폴리오 컨테이너('[data-testid=\"portfolio-summary\"]')를 찾을 수 없음.");
+        return null;
+    }
+
+    try {
+        // 2. 컨테이너 내부의 첫 번째 'flex-col' div를 찾음 (Portfolio 섹션)
+        const portfolioSection = portfolioContainer.querySelector('div.flex-col');
+        
+        if (!portfolioSection) {
+            console.error("오류: 포트폴리오 섹션(div.flex-col)을 찾을 수 없음.");
+            return null;
+        }
+
+        // 3. Portfolio 섹션 안에서 값을 담고 있는 span을 찾음
+        // (예: <span class="...tabular-nums...">...</span>)
+        const valueSpan = portfolioSection.querySelector('div > span.tabular-nums');
+        
+        if (!valueSpan) {
+            console.error("오류: 포트폴리오 값(span.tabular-nums)을 찾을 수 없음.");
+            return null;
+        }
+
+        const portfolioValue = valueSpan.textContent.trim();
+        console.log(`포트폴리오 가치: ${portfolioValue}`);
+        return portfolioValue;
+
+    } catch (e) {
+        console.error("포트폴리오 값 파싱 중 오류 발생:", e);
+        return null;
+    }
+}
+
 window.setQuantity = setQuantity;
 window.selectOrderType = selectOrderType;
 window.clickSubmitButton = clickSubmitButton;
 window.getPositions = getPositions; // getPositions 함수를 window에 할당 (추가된 부분)
+window.getPortfolioValue = getPortfolioValue;

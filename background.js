@@ -23,7 +23,6 @@ function executeOnTab(tabId, file, functionName, args = []) {
                 if (chrome.runtime.lastError) {
                     return reject(chrome.runtime.lastError);
                 }
-                // 스크립트 실행 결과가 없을 경우를 대비한 안정성 강화 코드 (수정된 부분)
                 resolve(injectionResults && injectionResults[0] ? injectionResults[0].result : null);
             });
         });
@@ -34,36 +33,49 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     (async () => {
         const { lighterTab, variationalTab } = await findTradingTabs();
 
-        if (request.action === 'getPositionInfo') {
+        if (request.action === 'getInfo') {
             let lighterData = null;
             let variationalData = null;
+            let lighterPortfolioValue = '0';
+            let variationalPortfolioValue = '0';
 
             try {
                 if (lighterTab) {
-                    const positions = await executeOnTab(lighterTab.id, 'lighter.js', 'getPositions', [request.coin]);
-                    // 반환된 positions가 null이 아닐 경우에만 find 실행 (수정된 부분)
+                    const [positions, portfolioValue] = await Promise.all([
+                        executeOnTab(lighterTab.id, 'lighter.js', 'getPositions', [request.coin]),
+                        executeOnTab(lighterTab.id, 'lighter.js', 'getPortfolioValue')
+                    ]);
                     if (positions) {
                         lighterData = positions.find(p => p.coin.toUpperCase() === request.coin.toUpperCase()) || null;
                     }
+                    if (portfolioValue) {
+                        lighterPortfolioValue = portfolioValue;
+                    }
                 }
                 if (variationalTab) {
-                    const positions = await executeOnTab(variationalTab.id, 'variational.js', 'getPositions', [request.coin]);
-                    // 반환된 positions가 null이 아닐 경우에만 find 실행 (수정된 부분)
+                    const [positions, portfolioValue] = await Promise.all([
+                        executeOnTab(variationalTab.id, 'variational.js', 'getPositions', [request.coin]),
+                        executeOnTab(variationalTab.id, 'variational.js', 'getPortfolioValue')
+                    ]);
                     if (positions) {
                         variationalData = positions.find(p => p.coin.toUpperCase() === request.coin.toUpperCase()) || null;
                     }
+                     if (portfolioValue) {
+                        variationalPortfolioValue = portfolioValue;
+                    }
                 }
             } catch (error) {
-                console.error("포지션 정보를 가져오는 중 오류 발생:", error);
+                console.error("포지션/포트폴리오 정보를 가져오는 중 오류 발생:", error);
             }
             
             chrome.runtime.sendMessage({
-                action: 'updatePositionDisplay',
+                action: 'updateDisplay',
                 lighterData: lighterData,
-                variationalData: variationalData
+                variationalData: variationalData,
+                lighterPortfolioValue: lighterPortfolioValue,
+                variationalPortfolioValue: variationalPortfolioValue
             });
 
-        // --- 나머지 액션들은 기존과 동일 ---
         } else if (request.action === 'setQuantity') {
             if (lighterTab) executeOnTab(lighterTab.id, 'lighter.js', 'setQuantity', [request.quantity]);
             if (variationalTab) executeOnTab(variationalTab.id, 'variational.js', 'setQuantity', [request.quantity]);
