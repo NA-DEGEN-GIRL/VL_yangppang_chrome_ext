@@ -3,12 +3,32 @@
 <head>
     <title>Hedge Trader</title>
     <style>
-        body { font-family: sans-serif; width: 250px; padding: 10px; }
-        .input-group { margin-bottom: 10px; }
-        label { display: block; margin-bottom: 5px; }
+        body { font-family: sans-serif; width: 280px; padding: 10px; }
+        .input-group, .button-group { margin-bottom: 10px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
         input { width: 95%; padding: 5px; }
         button { width: 100%; padding: 8px; margin-top: 5px; cursor: pointer; }
         .button-group { display: flex; gap: 5px; }
+        hr { border: 0; border-top: 1px solid #ccc; margin: 15px 0; }
+
+        /* 포지션 상태 표시를 위한 스타일 (추가된 부분) */
+        #position-status {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            margin-bottom: 10px;
+        }
+        #position-status p {
+            margin: 0;
+            padding: 2px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        #position-status span {
+            font-weight: bold;
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -18,6 +38,12 @@
             <input type="text" id="coinSymbol" placeholder="BTC">
             <button id="setCoinBtn">Set</button>
         </div>
+    </div>
+
+    <!-- 포지션 표시 영역 (추가된 부분) -->
+    <div id="position-status">
+        <p>Lighter: <span id="lighterPosition">Loading...</span></p>
+        <p>Variational: <span id="variationalPosition">Loading...</span></p>
     </div>
 
     <hr>
@@ -32,7 +58,13 @@
         <button id="lSellVBuy">L-Sell, V-Buy</button>
     </div>
 
-    <button id="submitOrder">Submit Order</button>
+    <button id="submitOrder">Submit ALL Orders</button>
+
+    <!-- 개별 주문 버튼 (추가된 부분) -->
+    <div class="button-group">
+        <button id="submitLighter">Submit L</button>
+        <button id="submitVariational">Submit V</button>
+    </div>
 
     <script src="popup.js"></script>
 </body>

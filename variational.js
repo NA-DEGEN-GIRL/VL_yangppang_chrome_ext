@@ -75,7 +75,34 @@ function clickSubmitButton() {
         console.error("오류: 제출 버튼('[data-testid=\"submit-button\"]')을 찾을 수 없음.");
     }
 }
+function getPositions(coinFilter = null) {
+    let positions = [];
+    let positionRows = document.querySelectorAll('div[data-testid="positions-table-row"]');
+    if (positionRows.length === 0) return positions;
+    
+    positionRows.forEach((row) => {
+        try {
+            const coinSpan = row.querySelector('span[title$="-PERP"]');
+            if (!coinSpan) return;
+
+            const coinName = coinSpan.getAttribute('title').replace('-PERP', '').trim();
+            if (coinFilter && coinName.toUpperCase() !== coinFilter.toUpperCase()) {
+                return;
+            }
+
+            const cells = row.querySelectorAll(':scope > div');
+            if (cells.length < 2) return;
+            const positionSize = cells[1].textContent.trim();
+            
+            if (coinName && positionSize) {
+                positions.push({ coin: coinName, position: positionSize });
+            }
+        } catch (e) { console.error(`포지션 파싱 중 오류:`, e); }
+    });
+    return positions;
+}
 
 window.setQuantity = setQuantity;
 window.selectOrderType = selectOrderType;
 window.clickSubmitButton = clickSubmitButton;
+window.getPositions = getPositions; // getPositions 함수를 window에 할당 (추가된 부분)

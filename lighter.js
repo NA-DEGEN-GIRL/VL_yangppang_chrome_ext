@@ -103,6 +103,45 @@ function clickSubmitButton() {
     }
 }
 
+/**
+ * 현재 페이지에 표시된 포지션 목록을 파싱하여 결과를 배열로 반환하는 스크립트.
+ * @param {string | null} [coinFilter=null] (선택) 필터링할 코인 이름.
+ * @returns {Array<Object>} 파싱된 포지션 객체의 배열.
+ */
+function getPositions(coinFilter = null) {
+    let positions = [];
+    let positionRows = document.querySelectorAll('tbody tr[data-testid^="row-"]');
+    let layoutMode = 'table';
+    if (positionRows.length === 0) {
+        positionRows = document.querySelectorAll('div[data-index]');
+        layoutMode = 'div';
+    }
+    if (positionRows.length === 0) return positions;
+    positionRows.forEach((row) => {
+        try {
+            const directionDiv = row.querySelector('[data-testid="direction-long"], [data-testid="direction-short"]');
+            if (!directionDiv) return;
+            const isLong = directionDiv.dataset.testid === 'direction-long';
+            const coinName = directionDiv.nextElementSibling.textContent.trim();
+            if (coinFilter && coinName.toUpperCase() !== coinFilter.toUpperCase()) return;
+            let quantity = null;
+            if (layoutMode === 'table') {
+                const sizeSpan = row.querySelectorAll('td')[1]?.querySelector('div > span:first-child');
+                if (sizeSpan) quantity = sizeSpan.textContent.trim();
+            } else {
+                const sizeButton = Array.from(row.querySelectorAll('button')).find(btn => btn.querySelector('span')?.textContent.trim() === 'Size');
+                const sizeSpan = sizeButton?.querySelector('div > span:first-child');
+                if (sizeSpan) quantity = sizeSpan.textContent.trim();
+            }
+            if (quantity) {
+                positions.push({ coin: coinName, position: isLong ? quantity : `-${quantity}` });
+            }
+        } catch (e) { console.error(`포지션 파싱 중 오류:`, e); }
+    });
+    return positions;
+}
+
 window.setQuantity = setQuantity;
 window.selectOrderType = selectOrderType;
 window.clickSubmitButton = clickSubmitButton;
+window.getPositions = getPositions; // getPositions 함수를 window에 할당 (추가된 부분)
