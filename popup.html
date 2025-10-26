@@ -3,7 +3,6 @@
 <head>
     <title>Hedge Trader</title>
     <style>
-        /* comment: 스크롤바 제거를 위해 여백과 패딩 축소 */
         body { font-family: sans-serif; width: 320px; padding: 8px; }
         .input-group, .button-group { margin-bottom: 8px; }
         label { display: block; margin-bottom: 4px; font-weight: bold; }
@@ -12,7 +11,6 @@
         .button-group { display: flex; gap: 4px; }
         hr { border: 0; border-top: 1px solid #ccc; margin: 10px 0; }
         
-        /* 테이블 공통 스타일 (패딩 축소) */
         .info-table {
             width: 100%;
             border-collapse: collapse;
@@ -21,7 +19,7 @@
         }
         .info-table th, .info-table td {
             border: 1px solid #ddd;
-            padding: 4px; /* 패딩 축소 */
+            padding: 4px;
             text-align: right;
         }
         .info-table th { background-color: #f2f2f2; text-align: center; }
@@ -30,9 +28,6 @@
     </style>
 </head>
 <body>
-    <!-- comment: 측면 패널 전환 버튼 추가 -->
-    <button id="toggleDisplayModeBtn" style="margin-bottom: 10px;">Switch to Side Panel</button>
-
     <div class="input-group">
         <label for="coinSymbol">Coin Symbol (e.g., ETH, SOL):</label>
         <div class="button-group">
@@ -103,6 +98,7 @@
         <button id="lSellVBuy">L-Sell, V-Buy</button>
     </div>
 
+    <!-- 오더북 인덱스 드롭다운 (수정됨: 11번 옵션 제거) -->
     <div class="input-group">
         <label for="orderbookIndex">Lighter Orderbook (X = Off):</label>
         <select id="orderbookIndex">
@@ -118,7 +114,6 @@
             <option value="8">8</option>
             <option value="9">9</option>
             <option value="10">10</option>
-            <option value="11">11</option>
         </select>
     </div>
 

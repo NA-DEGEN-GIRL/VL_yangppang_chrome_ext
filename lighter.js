@@ -1,409 +1,67 @@
-// https://app.lighter.xyz/trade/BTC
-// BTC 예시
+// https://app.lighter.xyz/trade/BTC (BTC 예시)
 
-/**
- * 웹페이지의 'Size' 입력 필드에 원하는 수량을 입력하는 스크립트.
- * (React 등 최신 프레임워크 호환 방식)
- * 이 코드를 Chrome 개발자 도구 (F12)의 Console 탭에서 실행할 것.
- * @param {string} quantity 입력할 수량 (예: '0.001', '50.5')
- */
 function setQuantity(quantity) {
-    // 여러 사이트에서 사용 가능한 셀렉터
     const inputField = document.querySelector('[data-testid="quantity-input"], [data-testid="place-order-size-input"]');
-
     if (!inputField) {
-        console.error("오류: 수량 입력 필드('[data-testid=\"quantity-input\"]' 또는 '[data-testid=\"place-order-size-input\"]')를 찾을 수 없음.");
+        console.error("오류: 수량 입력 필드를 찾을 수 없음.");
         return;
     }
-
-    // --- React와 같은 최신 프레임워크를 위한 가장 확실한 방법 ---
-    // 1. HTMLInputElement의 네이티브 'value' setter 함수를 가져옴.
     const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
-    
     if (!nativeInputValueSetter) {
         console.error("오류: 네이티브 value setter를 찾을 수 없음.");
         return;
     }
-
-    // 2. 네이티브 setter를 사용하여 inputField의 값을 강제로 설정.
     nativeInputValueSetter.call(inputField, quantity);
-
-    // 3. 'input' 이벤트를 생성하고 dispatch하여 React가 값 변경을 감지하고
-    //    내부 상태(state)를 업데이트하도록 함.
     const inputEvent = new Event('input', { bubbles: true });
     inputField.dispatchEvent(inputEvent);
-
-    console.log(`성공: 수량 입력 필드에 '${quantity}'가 입력되었고, 프레임워크 상태 업데이트를 시도했음.`);
+    console.log(`성공: 수량 입력 필드에 '${quantity}'가 입력됨.`);
 }
 
-
-/**
- * 'Buy' 또는 'Sell' 버튼을 선택하여 클릭하는 함수.
- * @param {string} type 'buy' 또는 'sell'을 입력.
- */
 function selectOrderType(type) {
     if (type.toLowerCase() !== 'buy' && type.toLowerCase() !== 'sell') {
         console.error("오류: type은 'buy' 또는 'sell'이어야 함.");
         return;
     }
-
-    // 버튼이 렌더링될 때까지 최대 2초간 대기
     const maxAttempts = 20;
     let attempt = 0;
-
     const intervalId = setInterval(() => {
-        // 페이지의 모든 버튼을 가져옴
-        const allButtons = document.querySelectorAll('button');
         let targetButton = null;
-        
-        // 버튼 텍스트에 "Buy / Long" 또는 "Sell / Short"가 포함된 버튼을 직접 찾음
         if (type.toLowerCase() === 'buy') {
-            targetButton = Array.from(allButtons).find(
-                b => b.textContent.includes('Buy / Long')
-            );
-        } else { // type is 'sell'
-            targetButton = Array.from(allButtons).find(
-                b => b.textContent.includes('Sell / Short')
-            );
+            targetButton = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Buy / Long'));
+        } else {
+            targetButton = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Sell / Short'));
         }
-
-        // 만약 위 조건으로 버튼을 찾지 못했다면, 이전 사이트를 위해 fallback 로직 실행
-        if (!targetButton) {
-            const switchContainer = document.querySelector('[role="switch"]');
-            if (switchContainer) {
-                 targetButton = Array.from(switchContainer.querySelectorAll('button')).find(
-                    b => b.textContent.trim().toLowerCase().startsWith(type.toLowerCase())
-                );
-            }
-        }
-        
         if (targetButton) {
-            clearInterval(intervalId); // 버튼을 찾았으므로 대기 중단
+            clearInterval(intervalId);
             targetButton.click();
-            console.log(`성공: '${targetButton.textContent.trim()}' 버튼을 클릭했음.`);
+            console.log(`성공: '${targetButton.textContent.trim()}' 버튼 클릭.`);
         } else if (attempt >= maxAttempts) {
-            clearInterval(intervalId); // 시간 초과로 대기 중단
-            console.error(`오류: 시간 내에 '${type}' 관련 버튼을 찾을 수 없음.`);
+            clearInterval(intervalId);
+            console.error(`오류: '${type}' 관련 버튼을 찾을 수 없음.`);
         }
         attempt++;
-    }, 100); // 100ms 간격으로 재시도
+    }, 100);
 }
 
-/**
- * 최종 제출 버튼 (예: 'Buy BTC' 또는 'Place Market Order')을 클릭하는 함수.
- */
 function clickSubmitButton() {
-    // 두 종류의 제출 버튼을 모두 처리하기 위한 셀렉터
     const submitButton = document.querySelector('[data-testid="submit-button"], [data-testid="place-order-button"]');
     if (submitButton) {
         submitButton.click();
-        console.log("성공: 제출 버튼을 클릭했음.");
+        console.log("성공: 제출 버튼 클릭.");
     } else {
-        console.error("오류: 제출 버튼('[data-testid=\"submit-button\"]' 또는 '[data-testid=\"place-order-button\"]')을 찾을 수 없음.");
-    }
-}
-
-/**
- * 현재 페이지에 표시된 포지션 목록을 파싱하여 결과를 배열로 반환하는 스크립트.
- * @param {string | null} [coinFilter=null] (선택) 필터링할 코인 이름.
- * @returns {Array<Object>} 파싱된 포지션 객체의 배열.
- */
-function getPositions(coinFilter = null) {
-    let positions = [];
-    let layoutMode = 'unknown';
-
-    // 1. Svelte 레이아웃 (새 사이트) 시도
-    let positionRows = document.querySelectorAll('div[data-testid="positions-table-row"]');
-    if (positionRows.length > 0) {
-        layoutMode = 'svelte';
-    } else {
-        // 2. <table> 레이아웃 (기존 사이트 넓은 화면) 시도
-        positionRows = document.querySelectorAll('tbody tr[data-testid^="row-"]');
-        if (positionRows.length > 0) {
-            layoutMode = 'table';
-        } else {
-            // 3. <div> 레이아웃 (기존 사이트 좁은 화면) 시도
-            positionRows = document.querySelectorAll('div[data-index]');
-            if (positionRows.length > 0) {
-                layoutMode = 'div';
-            }
-        }
-    }
-
-    // 4. 공통 파싱 로직 실행
-    if (layoutMode === 'unknown' || positionRows.length === 0) {
-        console.log("포지션 목록을 찾을 수 없음. (관련 DOM 요소를 찾지 못함)");
-        return positions; // 빈 배열 반환
-    }
-
-    console.log(`레이아웃 감지됨: ${layoutMode.toUpperCase()}`);
-
-    positionRows.forEach((row, index) => {
-        try {
-            let coinName = null;
-            let positionSize = null;
-            let unrealizedPnl = null; // PnL 변수 추가
-            let funding = null; // Funding 변수 추가
-
-            // --- SVELTE layout parsing ---
-            if (layoutMode === 'svelte') {
-                const cells = row.querySelectorAll(':scope > div'); // 직계 자식 div (컬럼)
-                if (cells.length < 9) { // Funding은 9번째(index 8) 셀
-                    console.warn(`행 ${index}: 셀 구조가 예상과 다름 (9개 미만).`);
-                    return;
-                }
-                
-                const coinSpan = cells[0].querySelector('span[title$="-PERP"]');
-                if (!coinSpan) {
-                    console.warn(`행 ${index}: 코인 이름 span을 찾을 수 없음.`);
-                    return;
-                }
-                
-                coinName = coinSpan.getAttribute('title').replace('-PERP', '').trim();
-                positionSize = cells[1].textContent.trim(); // 2번째 셀
-                
-                // PnL (8번째 셀, index 7)
-                const pnlCell = cells[7];
-                const pnlSpan = pnlCell.querySelector('span.text-ellipsis'); // <span class="text-ellipsis overflow-hidden">-$4.03</span>
-                if (pnlSpan) {
-                    unrealizedPnl = pnlSpan.textContent.trim().split(' (')[0]; // % 부분 제거
-                } else {
-                    console.warn(`행 ${index} (${coinName}): PnL span을 찾을 수 없음.`);
-                    unrealizedPnl = 'N/A';
-                }
-
-                // Funding (9번째 셀, index 8)
-                const fundingCell = cells[8];
-                funding = fundingCell.textContent.trim();
-                if (!funding) {
-                    console.warn(`행 ${index} (${coinName}): Funding 값을 찾을 수 없음.`);
-                    funding = 'N/A';
-                }
-
-
-            // --- 기존 layouts parsing ---
-            } else {
-                const directionDiv = row.querySelector('[data-testid="direction-long"], [data-testid="direction-short"]');
-                if (!directionDiv) {
-                    console.warn(`행 ${index}: 방향(Long/Short) 요소를 찾을 수 없음.`);
-                    return;
-                }
-                const isLong = directionDiv.dataset.testid === 'direction-long';
-                coinName = directionDiv.nextElementSibling.textContent.trim();
-
-                let quantity = null;
-                if (layoutMode === 'table') {
-                    // Table-specific logic
-                    const cells = row.querySelectorAll('td');
-                    if (cells.length < 9) { // Funding은 9번째(index 8) 셀
-                        console.warn(`행 ${index} (${coinName}): 셀(td) 구조가 예상과 다름 (9개 미만).`);
-                        return; 
-                    }
-                    // Size (2번째 셀, index 1)
-                    const sizeCell = cells[1];
-                    const sizeSpan = sizeCell.querySelector('div > span:first-child'); 
-                    if (!sizeSpan) {
-                         console.warn(`행 ${index} (${coinName}): 크기(Size) 값을 찾을 수 없음.`);
-                        return; 
-                    }
-                    quantity = sizeSpan.textContent.trim();
-
-                    // PnL (7번째 셀, index 6)
-                    const pnlCell = cells[6];
-                    const pnlDiv = pnlCell.querySelector('div');
-                    if (pnlDiv && pnlDiv.firstChild && pnlDiv.firstChild.nodeType === Node.TEXT_NODE) {
-                        unrealizedPnl = pnlDiv.firstChild.textContent.trim().split(' (')[0]; // % 부분 제거
-                    } else {
-                        console.warn(`행 ${index} (${coinName}): PnL div를 찾을 수 없음.`);
-                        unrealizedPnl = 0;
-                    }
-                    
-                    // Funding (9번째 셀, index 8)
-                    const fundingCell = cells[8];
-                    const fundingDiv = fundingCell.querySelector('div');
-                    if (fundingDiv && fundingDiv.textContent) {
-                        funding = fundingDiv.textContent.trim();
-                    } else {
-                         console.warn(`행 ${index} (${coinName}): Funding div를 찾을 수 없음.`);
-                        funding = 0;
-                    }
-
-                } else { // layoutMode === 'div'
-                    const buttons = Array.from(row.querySelectorAll('button')); // 'div' 모드일 때만 buttons 배열 생성
-                    // Size button
-                    const sizeButton = buttons.find(btn => 
-                        btn.querySelector('span') && 
-                        btn.querySelector('span').textContent.trim() === 'Size'
-                    );
-                    if (!sizeButton) {
-                        console.warn(`행 ${index} (${coinName}): 크기(Size) 버튼을 찾을 수 없음.`);
-                        return; 
-                    }
-                    const sizeSpan = sizeButton.querySelector('div > span:first-child');
-                    if (!sizeSpan) {
-                         console.warn(`행 ${index} (${coinName}): 크기(Size) 값을 찾을 수 없음.`);
-                        return; 
-                    }
-                    quantity = sizeSpan.textContent.trim();
-
-                    // PnL button
-                    const pnlButton = buttons.find(btn => 
-                        btn.querySelector('span') && 
-                        btn.querySelector('span').textContent.trim() === 'Unrealized PnL'
-                    );
-                    
-                    if (pnlButton) {
-                        const pnlDiv = pnlButton.querySelector('div');
-                        if (pnlDiv && pnlDiv.firstChild && pnlDiv.firstChild.nodeType === Node.TEXT_NODE) {
-                            unrealizedPnl = pnlDiv.firstChild.textContent.trim().split(' (')[0]; // % 부분 제거
-                        } else {
-                            unrealizedPnl = 'N/A';
-                        }
-                    } else {
-                        console.warn(`행 ${index} (${coinName}): PnL 버튼을 찾을 수 없음.`);
-                        unrealizedPnl = 'N/A';
-                    }
-                    
-                    // Funding button
-                    const fundingButton = buttons.find(btn => 
-                        btn.querySelector('span') && 
-                        btn.querySelector('span').textContent.trim() === 'Funding'
-                    );
-
-                    if (fundingButton) {
-                        const fundingDiv = fundingButton.querySelector('div');
-                        if (fundingDiv && fundingDiv.textContent) {
-                            funding = fundingDiv.textContent.trim();
-                        } else {
-                            funding = 0;
-                        }
-                    } else {
-                        console.warn(`행 ${index} (${coinName}): Funding 버튼을 찾을 수 없음.`);
-                        funding = 0;
-                    }
-                }
-                
-                if (quantity) {
-                    positionSize = isLong ? quantity : `-${quantity}`;
-                }
-            }
-
-            // --- 필터링 로직 ---
-            if (coinFilter && coinName.toUpperCase() !== coinFilter.toUpperCase()) {
-                return; // 다음 행으로 넘어감
-            }
-
-            // --- 공통 로직: 결과 포맷팅 ---
-            if (coinName && positionSize && unrealizedPnl && funding) {
-                positions.push({
-                    coin: coinName,
-                    position: positionSize,
-                    pnl: unrealizedPnl, // PnL 추가
-                    funding: funding // Funding 추가
-                });
-            }
-
-        } catch (e) {
-            console.error(`행 ${index} (${layoutMode}) 파싱 중 오류 발생:`, e, row);
-        }
-    });
-
-    // 5. 최종 결과 출력
-    if (positions.length > 0) {
-        if (coinFilter) {
-            console.log(`--- 현재 포지션 (${coinFilter.toUpperCase()}만) ---`);
-        } else {
-            console.log("--- 현재 포지션 (전체) ---");
-        }
-        console.table(positions);
-    } else {
-        if (coinFilter) {
-            console.log(`'${coinFilter}' 포지션을 찾을 수 없음.`);
-        } else {
-            console.log("파싱된 포지션이 없음.");
-        }
-    }
-
-    // 6. 파싱된 결과를 배열로 반환
-    return positions;
-}
-
-/**
- * 페이지 상단의 포트폴리오 가치 또는 Trading Equity를 가져와서 출력하고 반환하는 함수.
- * (여러 사이트 호환)
- * @returns {string | null} 포트폴리오 가치 (예: "$12,019.10") 또는 찾지 못할 경우 null.
- */
-function getPortfolioValue() {
-    
-    // --- 방법 1: data-testid="portfolio-summary" (Svelte 사이트) ---
-    const portfolioContainer = document.querySelector('[data-testid="portfolio-summary"]');
-    
-    if (portfolioContainer) {
-        try {
-            const portfolioSection = portfolioContainer.querySelector('div.flex-col');
-            if (!portfolioSection) {
-                console.error("오류 (방법 1): 포트폴리오 섹션(div.flex-col)을 찾을 수 없음.");
-                // 방법 1 실패 시, 방법 2로 넘어갈 수 있도록 return null;을 제거
-            } else {
-                const valueSpan = portfolioSection.querySelector('div > span.tabular-nums');
-                if (!valueSpan) {
-                    console.error("오류 (방법 1): 포트폴리오 값(span.tabular-nums)을 찾을 수 없음.");
-                } else {
-                    const portfolioValue = valueSpan.textContent.trim();
-                    console.log(`포트폴리오 가치 (방법 1): ${portfolioValue}`);
-                    return portfolioValue; // 성공 시 즉시 반환
-                }
-            }
-        } catch (e) {
-            console.error("포트폴리오 값 (방법 1) 파싱 중 오류 발생:", e);
-            // 방법 1 실패 시, 방법 2로 넘어감
-        }
-    }
-
-    // --- 방법 2: "Trading Equity:" 텍스트 (다른 사이트) ---
-    try {
-        // 페이지 내의 모든 <p> 태그를 순회
-        const allParagraphs = document.querySelectorAll('p');
-        let tradingEquityValue = null;
-
-        allParagraphs.forEach(p => {
-            if (p.textContent.trim() === 'Trading Equity:') {
-                // p 태그를 감싸고 있는 row 컨테이너 (.flex.w-full.justify-between)를 찾음
-                const rowContainer = p.closest('.flex.w-full.justify-between');
-                if (rowContainer) {
-                    // 해당 row 컨테이너 안에서 값을 담고 있는 span을 찾음
-                    const valueSpan = rowContainer.querySelector('.tabular-nums span');
-                    if (valueSpan) {
-                        tradingEquityValue = valueSpan.textContent.trim();
-                    }
-                }
-            }
-        });
-
-        if (tradingEquityValue) {
-            console.log(`Trading Equity (방법 2): ${tradingEquityValue}`);
-            return tradingEquityValue;
-        }
-
-        // --- 두 방법 모두 실패 ---
-        console.error("오류: 포트폴리오 컨테이너(방법 1) 또는 'Trading Equity:'(방법 2)를 찾을 수 없음.");
-        return null;
-
-    } catch (e) {
-        console.error("Trading Equity (방법 2) 파싱 중 오류 발생:", e);
-        return null;
+        console.error("오류: 제출 버튼을 찾을 수 없음.");
     }
 }
 
 /**
  * Lighter 오더북의 특정 가격을 클릭하는 함수.
  * @param {string} orderType 'buy' 또는 'sell'
- * @param {number} index 사용자가 팝업에서 입력한 인덱스 (0-11)
+ * @param {number} index 사용자가 팝업에서 입력한 인덱스 (0-10)
  */
 function clickOrderBookPrice(orderType, index) {
-    // comment: 오더북 클릭 기능 추가
-    if (typeof index !== 'number' || index < 0 || index > 11) {
-        console.error(`오류: 유효하지 않은 인덱스 값: ${index}`);
+    // comment: 오더북은 0~10까지만 존재하므로 최대값을 10으로 제한
+    if (typeof index !== 'number' || index < 0 || index > 10) {
+        console.error(`오류: 유효하지 않은 인덱스 값: ${index} (0-10만 허용)`);
         return;
     }
 
@@ -413,8 +71,9 @@ function clickOrderBookPrice(orderType, index) {
         targetElement = document.querySelector(selector);
         if (!targetElement) console.error(`오류: Bid 요소를 찾지 못함. Selector: ${selector}`);
     } else if (orderType === 'sell') {
-        const reversedIndex = 11 - index; // 변경된 부분: ask는 11부터 0까지 이므로 11에서 빼기
-        if (reversedIndex < 0) {
+        // comment: ask는 0~10까지이므로 10에서 빼기로 역순 계산
+        const reversedIndex = 10 - index;
+        if (reversedIndex < 0 || reversedIndex > 10) {
             console.error(`오류: 계산된 Ask 인덱스 범위 초과: ${index} -> ${reversedIndex}`);
             return;
         }
@@ -432,7 +91,6 @@ function clickOrderBookPrice(orderType, index) {
     }
 }
 
-// comment: 시장가(Market) 버튼 클릭 함수 추가
 function clickMarketButton() {
     const marketButton = document.querySelector('[data-testid="select-order-type-market"]');
     if (marketButton) {
@@ -451,14 +109,14 @@ function getPositions(coinFilter = null) {
         try {
             const coinSpan = row.querySelector('span[title$="-PERP"]');
             if(!coinSpan) return;
-            const coinName = coinSpan.getAttribute('title').replace('-PERP','').trim()
+            const coinName = coinSpan.getAttribute('title').replace('-PERP','').trim();
             if (coinFilter && coinName.toUpperCase() !== coinFilter.toUpperCase()) return;
             const cells = row.querySelectorAll(':scope > div');
             if (cells.length < 9) return;
             const pnlCell = Array.from(cells).find(cell => cell.querySelector('span.text-ellipsis'));
-            const pnlSpan = pnlCell.querySelector('span.text-ellipsis');
-            const unrealizedPnl = pnlSpan.textContent.trim().split(' (')[0];
-            const funding = cells[cells.length -1].textContent.trim();
+            const pnlSpan = pnlCell ? pnlCell.querySelector('span.text-ellipsis') : null;
+            const unrealizedPnl = pnlSpan ? pnlSpan.textContent.trim().split(' (')[0] : '0';
+            const funding = cells[cells.length - 1].textContent.trim();
             const positionSize = cells[1].textContent.trim();
             positions.push({ coin: coinName, position: positionSize, pnl: unrealizedPnl, funding: funding });
         } catch (e) { console.error(`포지션 파싱 오류:`, e); }
@@ -466,11 +124,23 @@ function getPositions(coinFilter = null) {
     return positions;
 }
 
+function getPortfolioValue() {
+    const portfolioContainer = document.querySelector('[data-testid="portfolio-summary"]');
+    if (!portfolioContainer) return null;
+    try {
+        const valueSpan = Array.from(portfolioContainer.querySelectorAll('span')).find(s => s.textContent.includes('$'));
+        return valueSpan ? valueSpan.textContent.trim() : null;
+    } catch (e) {
+        console.error("포트폴리오 값 파싱 오류:", e);
+        return null;
+    }
+}
 
+// 모든 함수를 window 객체에 등록
 window.setQuantity = setQuantity;
 window.selectOrderType = selectOrderType;
 window.clickSubmitButton = clickSubmitButton;
-window.getPositions = getPositions; // getPositions 함수를 window에 할당 (추가된 부분)
-window.getPortfolioValue = getPortfolioValue;
 window.clickOrderBookPrice = clickOrderBookPrice;
-window.clickMarketButton = clickMarketButton; // 추가된 부분
+window.clickMarketButton = clickMarketButton;
+window.getPositions = getPositions;
+window.getPortfolioValue = getPortfolioValue;

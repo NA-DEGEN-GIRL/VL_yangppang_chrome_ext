@@ -1,63 +1,213 @@
-# Lighter & Variational 헤지 거래 보조 확장 프로그램
+# Hedge Trading Helper - Chrome Extension
 
-Lighter와 Variational 거래소에서 동시에 반대 포지션(헤지) 주문을 실행하여 수동 거래의 번거로움을 줄이고 빠른 실행을 돕는 Chrome 확장 프로그램입니다.
+Lighter와 Variational 거래소에서 동시에 반대 포지션(헤지) 주문을 실행하고 실시간 포지션 정보를 모니터링하는 Chrome 확장 프로그램입니다.
 
-## 🎯 목표 (Goal)
+## 🎯 목표
 
-두 거래소 간의 가격 차이를 이용하는 차익 거래 또는 페어 트레이딩 전략을 구사할 때, 클릭 한 번으로 Lighter에서는 Long(매수), Variational에서는 Short(매도)와 같이 반대 주문을 동시에 실행하는 것을 목표로 합니다.
+두 거래소 간의 가격 차이를 이용한 차익 거래 또는 헤지 트레이딩 전략 실행 시, 수동 작업을 최소화하고 빠른 주문 실행을 지원합니다.
 
-## ✨ 주요 기능 (Key Features)
+## ✨ 주요 기능
 
--   **단일 수량 입력**: 한 번의 입력으로 두 거래소에 동일한 주문 수량을 설정합니다.
--   **원클릭 포지션 설정**: `L-Buy, V-Sell` / `L-Sell, V-Buy` 버튼으로 매수/매도 방향을 동시에 지정합니다.
--   **동시 주문 실행**: `Submit Order` 버튼으로 두 거래소에 주문을 동시에 제출합니다.
--   **거래 페어 변경**: 코인 심볼(e.g., ETH, SOL)을 입력하고 `Set` 버튼을 누르면, 열려 있는 두 거래소의 거래 페이지를 해당 코인 페어로 동시에 변경(새로고침)합니다.
+### 📊 실시간 모니터링
+- **포지션 정보**: 각 거래소의 포지션 크기를 소수점 4자리까지 실시간 표시
+- **손익 현황**: 미실현 손익(PnL)과 펀딩 수수료를 소수점 1자리까지 표시
+- **계좌 잔액**: 각 거래소별 잔액 및 총 합계를 USD 형식($X,XXX.XX)으로 표시
+- **자동 갱신**: 모든 정보가 1초마다 자동으로 업데이트
 
-## 📂 프로젝트 구조 (Project Structure)
+### 🚀 주문 실행
+- **동시 수량 설정**: 한 번의 입력으로 두 거래소에 동일한 주문 수량 설정
+- **헤지 포지션 실행**: 
+  - `L-Buy, V-Sell`: Lighter 매수(Long) + Variational 매도(Short)
+  - `L-Sell, V-Buy`: Lighter 매도(Short) + Variational 매수(Long)
+- **Lighter 오더북 연동**: 
+  - `X (Off)`: 시장가(Market) 주문 실행
+  - `0-10`: 선택한 번호의 오더북 가격으로 지정가 주문
+    - Buy 시: 선택한 번호의 bid 가격 클릭
+    - Sell 시: 역순으로 ask 가격 클릭 (0 선택 시 → ask-10 클릭)
+- **개별 주문 제출**: 
+  - `Submit L`: Lighter 거래소만 주문 실행
+  - `Submit V`: Variational 거래소만 주문 실행
+  - `Submit ALL Orders`: 두 거래소 동시 주문 실행
+
+### 🔧 편의 기능
+- **거래 페어 변경**: 코인 심볼(ETH, SOL 등) 입력 후 `Set` 버튼으로 두 거래소 페이지 동시 전환
+- **측면 패널 지원**: Chrome 측면 패널에서도 사용 가능 (우클릭 메뉴)
+
+## 📂 프로젝트 구조
 
 ```
-/
-├── manifest.json
-├── popup.html
-├── popup.js
-├── background.js
-├── lighter.js
-├── variational.js
+hedge-trading-helper/
+├── manifest.json          # Chrome 확장 프로그램 설정
+├── popup.html            # 사용자 인터페이스
+├── popup.js              # UI 이벤트 처리 및 데이터 표시
+├── background.js         # 백그라운드 작업 및 탭 간 통신
+├── lighter.js            # Lighter 거래소 DOM 조작 스크립트
+├── variational.js        # Variational 거래소 DOM 조작 스크립트
+├── README.md             # 프로젝트 문서
 └── images/
-    ├── icon16.png
-    ├── icon48.png
-    └── icon128.png
+    └── icon128.png       # 확장 프로그램 아이콘
 ```
 
--   `manifest.json`: 확장 프로그램의 설정 파일 (권한, 스크립트 등 정의)
--   `popup.html`: 확장 프로그램 아이콘 클릭 시 나타나는 UI
--   `popup.js`: `popup.html`의 사용자 인터페이스 로직 처리
--   `background.js`: 탭 검색, 스크립트 주입 등 백그라운드 작업 수행
--   `lighter.js`: Lighter 거래소 페이지에 주입되어 DOM을 조작하는 스크립트
--   `variational.js`: Variational 거래소 페이지에 주입되어 DOM을 조작하는 스크립트
+### 📋 각 파일의 역할
 
-## 🚀 설치 및 사용 방법 (Installation & Usage)
+- **`manifest.json`**: 확장 프로그램의 권한, 스크립트, 아이콘 등을 정의
+- **`popup.html/js`**: 사용자가 상호작용하는 UI와 실시간 데이터 표시 로직
+- **`background.js`**: 거래소 탭을 찾고, 스크립트를 주입하며, 메시지를 중계하는 백그라운드 서비스
+- **`lighter.js`**: Lighter 거래소 페이지에서 수량 입력, 버튼 클릭, 데이터 수집 등을 수행
+- **`variational.js`**: Variational 거래소 페이지에서 동일한 작업 수행
 
-1.  이 프로젝트의 모든 파일들을 로컬 컴퓨터의 한 폴더 (예: `hedge-trader`)에 저장합니다.
-2.  Chrome 브라우저에서 주소창에 `chrome://extensions` 를 입력하여 확장 프로그램 관리 페이지로 이동합니다.
-3.  페이지 우측 상단의 **'개발자 모드(Developer mode)'**를 활성화합니다.
-4.  좌측 상단의 **'압축해제된 확장 프로그램을 로드합니다(Load unpacked)'** 버튼을 클릭합니다.
-5.  1번 단계에서 저장한 `hedge-trader` 폴더를 선택합니다.
-6.  설치가 완료되면 브라우저 툴바에 확장 프로그램 아이콘이 나타납니다. (필요시 고정)
-7.  Lighter와 Variational 거래소 탭을 각각 **하나씩만** 열어둡니다.
-8.  확장 프로그램 아이콘을 클릭하고 원하는 수량과 포지션을 설정한 후 주문을 실행합니다.
+## 🚀 설치 방법
 
-## ⚠️ 매우 중요한 주의사항: 선택자(Selector) 업데이트
+1. **소스 코드 다운로드**
+   ```bash
+   git clone [repository-url]
+   cd hedge-trading-helper
+   ```
 
-이 확장 프로그램은 **웹사이트의 HTML 구조**에 의존하여 동작합니다. 즉, Lighter 또는 Variational 거래소 웹사이트가 업데이트되어 HTML 구조(id, class 등)가 변경되면 확장 프로그램이 **정상적으로 동작하지 않을 수 있습니다.**
+2. **Chrome 브라우저에서 확장 프로그램 페이지 열기**
+   - 주소창에 `chrome://extensions` 입력
+   - 또는 메뉴 → 도구 더보기 → 확장 프로그램
 
-문제가 발생할 경우, `lighter.js`와 `variational.js` 파일 내의 `document.querySelector(...)` 부분을 수정해야 합니다.
+3. **개발자 모드 활성화**
+   - 페이지 우측 상단의 "개발자 모드" 토글 ON
 
-**수정 방법:**
-1.  해당 거래소 페이지에서 `F12` 키를 눌러 개발자 도구를 엽니다.
-2.  개발자 도구 좌상단의 요소 선택 아이콘(화살표 모양)을 클릭하여 수량 입력창, 매수/매도 버튼 등을 선택합니다.
-3.  해당 요소의 고유한 속성(예: `data-testid`, `id`, `class`)을 찾아 `.js` 파일의 선택자를 업데이트합니다.
+4. **확장 프로그램 로드**
+   - "압축해제된 확장 프로그램을 로드합니다" 클릭
+   - 다운로드한 프로젝트 폴더 선택
 
-## 📜 라이선스 (License)
+5. **툴바에 고정**
+   - 브라우저 우측 상단의 퍼즐 아이콘 클릭
+   - Hedge Trading Helper 옆의 핀 아이콘 클릭하여 고정
 
-이 프로젝트는 MIT 라이선스를 따릅니다.
+## 📖 사용 가이드
+
+### 사전 준비
+1. **거래소 탭 열기**
+   - Lighter: `https://app.lighter.xyz/trade/BTC`
+   - Variational: `https://omni.variational.io/perpetual/BTC`
+   - 각 거래소당 **하나의 탭만** 열어야 함
+   - 두 거래소 모두 로그인 필요
+
+2. **확장 프로그램 실행**
+   - 툴바의 확장 프로그램 아이콘 클릭
+   - 팝업창이 열리면서 실시간 정보 표시 시작
+
+### 주문 실행 단계
+
+1. **거래 페어 설정**
+   ```
+   Coin Symbol: [ETH] [Set]
+   ```
+   - 원하는 코인 심볼 입력 후 Set 버튼 클릭
+   - 두 거래소 페이지가 해당 코인으로 자동 전환
+
+2. **수량 입력**
+   ```
+   Quantity: [0.001]
+   ```
+   - 거래할 수량 입력 (두 거래소 동일 적용)
+
+3. **오더북 설정 (Lighter 전용)**
+   ```
+   Lighter Orderbook: [X (Off) ▼]
+   ```
+   - `X`: 시장가 주문
+   - `0`: 최우선 호가 (Best bid/ask)
+   - `1-10`: 호가창 깊이별 가격 선택
+
+4. **포지션 방향 선택 및 실행**
+   ```
+   [L-Buy, V-Sell] [L-Sell, V-Buy]
+   ```
+   - 원하는 헤지 방향 버튼 클릭
+
+5. **주문 제출**
+   ```
+   [Submit ALL Orders]
+   [Submit L] [Submit V]
+   ```
+   - ALL: 두 거래소 동시 실행
+   - L/V: 개별 거래소 실행 (한쪽 실패 시 재시도용)
+
+### 측면 패널 사용법
+1. 확장 프로그램 아이콘 **우클릭**
+2. "측면 패널에서 열기" 선택
+3. Chrome 브라우저 우측에 패널로 고정되어 표시
+
+## ⚠️ 주의사항
+
+### 거래소 웹사이트 변경 대응
+거래소가 UI를 업데이트하면 확장 프로그램이 작동하지 않을 수 있습니다.
+
+**DOM 선택자 수정 방법:**
+1. 해당 거래소 페이지에서 `F12` (개발자 도구)
+2. Elements 탭에서 요소 선택 도구(화살표 아이콘) 클릭
+3. 페이지에서 문제가 되는 요소 클릭
+4. `data-testid`, `class`, `id` 등 확인
+5. `lighter.js` 또는 `variational.js`의 선택자 수정
+
+**예시:**
+```javascript
+// 기존
+document.querySelector('[data-testid="old-button"]')
+// 수정
+document.querySelector('[data-testid="new-button"]')
+```
+
+### 안전한 사용을 위한 권고사항
+- ⚠️ 실제 거래 전 **테스트넷**이나 **소액**으로 충분히 테스트
+- ⚠️ 중요한 거래 시 거래소 화면 직접 확인
+- ⚠️ 네트워크 지연이나 거래소 점검 시간 확인
+- ⚠️ 개인 키나 API 키는 절대 확장 프로그램에 입력하지 않음
+
+## 🐛 문제 해결
+
+### 포지션 정보가 0으로 표시
+- 거래소 탭이 열려있는지 확인
+- 페이지가 완전히 로드되었는지 확인 (새로고침 필요할 수 있음)
+- 로그인 상태 확인
+
+### 주문이 실행되지 않음
+- 거래 가능 잔액 확인
+- 마진 레벨 확인
+- 최소 주문 수량 확인
+- 콘솔 에러 확인: `F12` → Console 탭
+
+### 버튼 클릭이 작동하지 않음
+- DOM 선택자가 최신인지 확인 (위 "DOM 선택자 수정 방법" 참조)
+- 거래소 페이지 새로고침 후 재시도
+
+## 🔄 업데이트 내역
+
+### v1.4 (현재)
+- 오더북 인덱스 버그 수정 (0-10 범위로 정정)
+- 실시간 포지션 모니터링 기능 추가
+- PnL 및 Funding Fee 표시
+- 계좌 잔액 합산 표시
+- 시장가/지정가 주문 자동 전환
+
+## 📜 라이선스
+
+MIT License - 자유롭게 사용, 수정, 배포 가능
+
+## 🤝 기여
+
+버그 리포트, 기능 제안, Pull Request를 환영합니다.
+
+### 기여 방법
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📞 지원
+
+- 이슈 트래커: [GitHub Issues]
+- 질문 및 토론: [GitHub Discussions]
+
+---
+
+**⚡ 빠르고 안전한 헤지 트레이딩을 위한 최고의 도구**
+
+*Made with ❤️ for crypto traders*
