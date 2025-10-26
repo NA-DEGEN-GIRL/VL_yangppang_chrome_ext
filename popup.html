@@ -25,6 +25,32 @@
         .info-table th { background-color: #f2f2f2; text-align: center; }
         .info-table td:first-child { text-align: left; font-weight: bold; }
         #balance-table .total-row td { font-weight: bold; }
+        
+        /* 오더북 자동 업데이트 섹션 스타일 */
+        .orderbook-section {
+            border: 1px solid #ddd;
+            padding: 6px;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .auto-update-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .auto-update-row input {
+            width: 60px;
+        }
+        #autoUpdateToggle {
+            background-color: #4CAF50;
+            color: white;
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+        #autoUpdateToggle.active {
+            background-color: #f44336;
+        }
     </style>
 </head>
 <body>
@@ -98,26 +124,36 @@
         <button id="lSellVBuy">L-Sell, V-Buy</button>
     </div>
 
-    <!-- 오더북 인덱스 드롭다운 (수정됨: 11번 옵션 제거) -->
-    <div class="input-group">
-        <label for="orderbookIndex">Lighter Orderbook (X = Off):</label>
-        <select id="orderbookIndex">
-            <option value="X">X (Off)</option>
-            <option value="0">0</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-            <option value="6">6</option>
-            <option value="7">7</option>
-            <option value="8">8</option>
-            <option value="9">9</option>
-            <option value="10">10</option>
-        </select>
+    <!-- 오더북 섹션 (수정됨) -->
+    <div class="orderbook-section">
+        <div class="input-group" style="margin-bottom: 4px;">
+            <label for="orderbookIndex">Lighter Orderbook (X = Off):</label>
+            <select id="orderbookIndex">
+                <option value="X">X (Off)</option>
+                <option value="0">0</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+            </select>
+        </div>
+        
+        <!-- 자동 업데이트 컨트롤 (추가됨) -->
+        <div class="auto-update-row">
+            <span style="font-size: 12px;">Auto-refresh:</span>
+            <input type="number" id="refreshInterval" min="100" max="5000" value="200" step="100">
+            <span style="font-size: 12px;">ms</span>
+            <button id="autoUpdateToggle">Start</button>
+        </div>
     </div>
 
-    <button id="submitOrder">Submit ALL Orders</button>
+    <button id="submitOrder" style="margin-top: 8px;">Submit ALL Orders</button>
 
     <div class="button-group">
         <button id="submitLighter">Submit L</button>

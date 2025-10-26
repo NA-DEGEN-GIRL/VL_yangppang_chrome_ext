@@ -8,6 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitOrderBtn = document.getElementById('submitOrder');
     const submitLighterBtn = document.getElementById('submitLighter');
     const submitVariationalBtn = document.getElementById('submitVariational');
+    
+    // 자동 업데이트 관련 요소 (추가됨)
+    const refreshIntervalInput = document.getElementById('refreshInterval');
+    const autoUpdateToggleBtn = document.getElementById('autoUpdateToggle');
 
     const lighterSizeCell = document.getElementById('lighter-size');
     const lighterPnlCell = document.getElementById('lighter-pnl');
@@ -20,6 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalBalanceCell = document.getElementById('total-balance');
 
     let positionInterval;
+    let autoUpdateInterval = null; // 오더북 자동 업데이트 인터벌
+    let currentOrderType = null; // 현재 선택된 주문 타입 ('buy' 또는 'sell')
 
     function formatSize(value) { 
         const num = parseFloat(value); 
@@ -43,9 +49,68 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.runtime.sendMessage({ action: 'getInfo', coin: coin });
     }
     
+    // 오더북 자동 업데이트 시작 함수 (추가됨)
+    function startAutoUpdate() {
+        const orderbookIndex = orderbookIndexInput.value;
+        const interval = parseInt(refreshIntervalInput.value) || 200;
+        
+        if (orderbookIndex === 'X' || !currentOrderType) {
+            alert('Please select an orderbook index (not X) and click L-Buy/V-Sell or L-Sell/V-Buy first');
+            return;
+        }
+        
+        stopAutoUpdate(); // 기존 인터벌 정리
+        
+        // 즉시 한번 실행
+        chrome.runtime.sendMessage({ 
+            action: 'updateOrderbookPrice',
+            lighterOrder: currentOrderType,
+            orderbookIndex: orderbookIndex
+        });
+        
+        // 주기적 실행
+        autoUpdateInterval = setInterval(() => {
+            chrome.runtime.sendMessage({ 
+                action: 'updateOrderbookPrice',
+                lighterOrder: currentOrderType,
+                orderbookIndex: orderbookIndexInput.value
+            });
+        }, interval);
+        
+        autoUpdateToggleBtn.textContent = 'Stop';
+        autoUpdateToggleBtn.classList.add('active');
+    }
+    
+    // 오더북 자동 업데이트 정지 함수 (추가됨)
+    function stopAutoUpdate() {
+        if (autoUpdateInterval) {
+            clearInterval(autoUpdateInterval);
+            autoUpdateInterval = null;
+        }
+        autoUpdateToggleBtn.textContent = 'Start';
+        autoUpdateToggleBtn.classList.remove('active');
+    }
+    
+    // 자동 업데이트 토글 버튼 이벤트 (추가됨)
+    autoUpdateToggleBtn.addEventListener('click', () => {
+        if (autoUpdateInterval) {
+            stopAutoUpdate();
+        } else {
+            startAutoUpdate();
+        }
+    });
+    
+    // 오더북 인덱스 변경 시 자동 업데이트 중지 (추가됨)
+    orderbookIndexInput.addEventListener('change', () => {
+        if (orderbookIndexInput.value === 'X') {
+            stopAutoUpdate();
+        }
+    });
+    
     positionInterval = setInterval(requestData, 1000);
     window.addEventListener('unload', () => { 
-        if (positionInterval) clearInterval(positionInterval); 
+        if (positionInterval) clearInterval(positionInterval);
+        if (autoUpdateInterval) clearInterval(autoUpdateInterval);
     });
 
     chrome.runtime.onMessage.addListener((request) => {
@@ -81,21 +146,33 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     lBuyVSellBtn.addEventListener('click', () => {
+        currentOrderType = 'buy'; // 현재 주문 타입 저장
         chrome.runtime.sendMessage({ 
             action: 'executeHedgeOrder', 
             lighterOrder: 'buy', 
             variationalOrder: 'sell', 
             orderbookIndex: orderbookIndexInput.value 
         });
+        
+        // 오더북이 선택되어 있고 자동 업데이트가 실행중이면 새로운 타입으로 업데이트
+        if (orderbookIndexInput.value !== 'X' && autoUpdateInterval) {
+            startAutoUpdate();
+        }
     });
     
     lSellVBuyBtn.addEventListener('click', () => {
+        currentOrderType = 'sell'; // 현재 주문 타입 저장
         chrome.runtime.sendMessage({ 
             action: 'executeHedgeOrder', 
             lighterOrder: 'sell', 
             variationalOrder: 'buy', 
             orderbookIndex: orderbookIndexInput.value 
         });
+        
+        // 오더북이 선택되어 있고 자동 업데이트가 실행중이면 새로운 타입으로 업데이트
+        if (orderbookIndexInput.value !== 'X' && autoUpdateInterval) {
+            startAutoUpdate();
+        }
     });
     
     submitOrderBtn.addEventListener('click', () => {

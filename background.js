@@ -82,6 +82,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 await executeOnTab(variationalTab.id, 'variational.js', 'selectOrderType', [request.variationalOrder]);
             }
         
+        } else if (request.action === 'updateOrderbookPrice') {
+            // 오더북 가격만 업데이트하는 새로운 액션 (추가됨)
+            if (lighterTab && request.orderbookIndex !== 'X') {
+                const index = parseInt(request.orderbookIndex, 10);
+                await executeOnTab(lighterTab.id, 'lighter.js', 'clickOrderBookPrice', [request.lighterOrder, index]);
+            }
+        
         } else if (request.action === 'setQuantity') {
             if (lighterTab) executeOnTab(lighterTab.id, 'lighter.js', 'setQuantity', [request.quantity]);
             if (variationalTab) executeOnTab(variationalTab.id, 'variational.js', 'setQuantity', [request.quantity]);

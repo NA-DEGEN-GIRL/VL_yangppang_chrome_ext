@@ -24,6 +24,9 @@ Lighter와 Variational 거래소에서 동시에 반대 포지션(헤지) 주문
   - `0-10`: 선택한 번호의 오더북 가격으로 지정가 주문
     - Buy 시: 선택한 번호의 bid 가격 클릭
     - Sell 시: 역순으로 ask 가격 클릭 (0 선택 시 → ask-10 클릭)
+  - **자동 가격 업데이트**: 오더북 가격을 주기적으로 자동 클릭하여 최신 가격 유지
+    - 업데이트 주기: 100ms ~ 5000ms (기본값: 200ms)
+    - Start/Stop 버튼으로 제어 가능
 - **개별 주문 제출**: 
   - `Submit L`: Lighter 거래소만 주문 실행
   - `Submit V`: Variational 거래소만 주문 실행
@@ -110,10 +113,14 @@ hedge-trading-helper/
 3. **오더북 설정 (Lighter 전용)**
    ```
    Lighter Orderbook: [X (Off) ▼]
+   Auto-refresh: [200] ms [Start]
    ```
    - `X`: 시장가 주문
    - `0`: 최우선 호가 (Best bid/ask)
    - `1-10`: 호가창 깊이별 가격 선택
+   - **Auto-refresh**: 오더북 선택 시 자동 가격 업데이트
+     - 주기 설정: 100-5000ms
+     - Start/Stop 버튼으로 제어
 
 4. **포지션 방향 선택 및 실행**
    ```
@@ -128,6 +135,13 @@ hedge-trading-helper/
    ```
    - ALL: 두 거래소 동시 실행
    - L/V: 개별 거래소 실행 (한쪽 실패 시 재시도용)
+
+### 오더북 자동 업데이트 사용법
+1. 오더북 인덱스를 선택 (0-10 중 하나)
+2. L-Buy/V-Sell 또는 L-Sell/V-Buy 버튼을 클릭하여 방향 설정
+3. Auto-refresh 주기를 설정 (기본값: 200ms)
+4. Start 버튼을 클릭하여 자동 업데이트 시작
+5. Stop 버튼으로 언제든지 중지 가능
 
 ### 측면 패널 사용법
 1. 확장 프로그램 아이콘 **우클릭**
@@ -159,6 +173,7 @@ document.querySelector('[data-testid="new-button"]')
 - ⚠️ 중요한 거래 시 거래소 화면 직접 확인
 - ⚠️ 네트워크 지연이나 거래소 점검 시간 확인
 - ⚠️ 개인 키나 API 키는 절대 확장 프로그램에 입력하지 않음
+- ⚠️ 자동 업데이트 사용 시 너무 짧은 주기는 서버 부하 유발 가능
 
 ## 🐛 문제 해결
 
@@ -177,9 +192,19 @@ document.querySelector('[data-testid="new-button"]')
 - DOM 선택자가 최신인지 확인 (위 "DOM 선택자 수정 방법" 참조)
 - 거래소 페이지 새로고침 후 재시도
 
+### 자동 업데이트가 작동하지 않음
+- 오더북 인덱스가 'X'가 아닌지 확인
+- L-Buy/V-Sell 또는 L-Sell/V-Buy 버튼을 먼저 클릭했는지 확인
+- 너무 짧은 주기(100ms 미만)는 동작하지 않을 수 있음
+
 ## 🔄 업데이트 내역
 
-### v1.4 (현재)
+### v1.5 (현재)
+- 오더북 가격 자동 업데이트 기능 추가
+- 업데이트 주기 사용자 설정 가능 (100-5000ms)
+- Start/Stop 토글 버튼으로 제어
+
+### v1.4
 - 오더북 인덱스 버그 수정 (0-10 범위로 정정)
 - 실시간 포지션 모니터링 기능 추가
 - PnL 및 Funding Fee 표시
@@ -189,25 +214,3 @@ document.querySelector('[data-testid="new-button"]')
 ## 📜 라이선스
 
 MIT License - 자유롭게 사용, 수정, 배포 가능
-
-## 🤝 기여
-
-버그 리포트, 기능 제안, Pull Request를 환영합니다.
-
-### 기여 방법
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📞 지원
-
-- 이슈 트래커: [GitHub Issues]
-- 질문 및 토론: [GitHub Discussions]
-
----
-
-**⚡ 빠르고 안전한 헤지 트레이딩을 위한 최고의 도구**
-
-*Made with ❤️ for crypto traders*
