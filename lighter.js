@@ -395,6 +395,43 @@ function getPortfolioValue() {
     }
 }
 
+/**
+ * Lighter 오더북의 특정 가격을 클릭하는 함수.
+ * @param {string} orderType 'buy' 또는 'sell'
+ * @param {number} index 사용자가 팝업에서 입력한 인덱스 (0-11)
+ */
+function clickOrderBookPrice(orderType, index) {
+    // comment: 오더북 클릭 기능 추가
+    if (typeof index !== 'number' || index < 0 || index > 11) {
+        console.error(`오류: 유효하지 않은 인덱스 값: ${index}`);
+        return;
+    }
+
+    let targetElement;
+    if (orderType === 'buy') {
+        const selector = `div[data-testid="ob-bid-${index}"] span[data-testid="price"]`;
+        targetElement = document.querySelector(selector);
+        if (!targetElement) console.error(`오류: Bid 요소를 찾지 못함. Selector: ${selector}`);
+    } else if (orderType === 'sell') {
+        const reversedIndex = 11 - index; // 변경된 부분: ask는 11부터 0까지 이므로 11에서 빼기
+        if (reversedIndex < 0) {
+            console.error(`오류: 계산된 Ask 인덱스 범위 초과: ${index} -> ${reversedIndex}`);
+            return;
+        }
+        const selector = `div[data-testid="ob-ask-${reversedIndex}"] span[data-testid="price"]`;
+        targetElement = document.querySelector(selector);
+        if (!targetElement) console.error(`오류: Ask 요소를 찾지 못함. Selector: ${selector}`);
+    } else {
+        console.error(`오류: 알 수 없는 orderType: ${orderType}`);
+        return;
+    }
+
+    if (targetElement) {
+        targetElement.click();
+        console.log(`성공: Lighter 오더북 ${orderType} 위치(${index}) 클릭.`);
+    }
+}
+
 
 
 window.setQuantity = setQuantity;
@@ -402,3 +439,4 @@ window.selectOrderType = selectOrderType;
 window.clickSubmitButton = clickSubmitButton;
 window.getPositions = getPositions; // getPositions 함수를 window에 할당 (추가된 부분)
 window.getPortfolioValue = getPortfolioValue;
+window.clickOrderBookPrice = clickOrderBookPrice;

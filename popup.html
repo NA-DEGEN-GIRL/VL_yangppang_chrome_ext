@@ -6,7 +6,7 @@
         body { font-family: sans-serif; width: 320px; padding: 10px; }
         .input-group, .button-group { margin-bottom: 10px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input { width: 95%; padding: 5px; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 5px; box-sizing: border-box; }
         button { width: 100%; padding: 8px; margin-top: 5px; cursor: pointer; }
         .button-group { display: flex; gap: 5px; }
         hr { border: 0; border-top: 1px solid #ccc; margin: 15px 0; }
@@ -72,7 +72,7 @@
         </tbody>
     </table>
 
-    <!-- Balance 테이블 (수정된 부분) -->
+    <!-- Balance 테이블 -->
     <table id="balance-table" class="info-table">
         <thead>
             <tr>
@@ -106,6 +106,26 @@
     <div class="button-group">
         <button id="lBuyVSell">L-Buy, V-Sell</button>
         <button id="lSellVBuy">L-Sell, V-Buy</button>
+    </div>
+
+    <!-- 오더북 인덱스 드롭다운 메뉴 -->
+    <div class="input-group">
+        <label for="orderbookIndex">Lighter Orderbook (X = Off):</label>
+        <select id="orderbookIndex">
+            <option value="X">X (Off)</option>
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+            <option value="11">11</option>
+        </select>
     </div>
 
     <button id="submitOrder">Submit ALL Orders</button>
