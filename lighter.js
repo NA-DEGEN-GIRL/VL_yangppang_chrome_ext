@@ -103,35 +103,124 @@ function clickMarketButton() {
 
 function getPositions(coinFilter = null) {
     let positions = [];
-    let positionRows = Array.from(document.querySelectorAll('div[data-testid="positions-table-row"]'));
-    if (positionRows.length === 0) return positions;
-    positionRows.forEach((row) => {
+    
+    // 새로운 <tr> 구조로 변경
+    let positionRows = Array.from(document.querySelectorAll('tr[data-testid^="row-"]'));
+    
+    if (positionRows.length === 0) {
+        console.log("포지션을 찾을 수 없음");
+        return positions;
+    }
+
+    positionRows.forEach((row, index) => {
         try {
-            const coinSpan = row.querySelector('span[title$="-PERP"]');
-            if(!coinSpan) return;
-            const coinName = coinSpan.getAttribute('title').replace('-PERP','').trim();
-            if (coinFilter && coinName.toUpperCase() !== coinFilter.toUpperCase()) return;
-            const cells = row.querySelectorAll(':scope > div');
-            if (cells.length < 9) return;
-            const pnlCell = Array.from(cells).find(cell => cell.querySelector('span.text-ellipsis'));
-            const pnlSpan = pnlCell ? pnlCell.querySelector('span.text-ellipsis') : null;
-            const unrealizedPnl = pnlSpan ? pnlSpan.textContent.trim().split(' (')[0] : '0';
-            const funding = cells[cells.length - 1].textContent.trim();
-            const positionSize = cells[1].textContent.trim();
-            positions.push({ coin: coinName, position: positionSize, pnl: unrealizedPnl, funding: funding });
-        } catch (e) { console.error(`포지션 파싱 오류:`, e); }
+            // td 셀들을 가져옴
+            const cells = row.querySelectorAll('td');
+            if (cells.length < 9) {
+                console.warn(`행 ${index}: 셀 구조가 예상과 다름 (9개 미만).`);
+                return;
+            }
+
+            // 첫 번째 td에서 코인 이름과 방향(long/short) 확인
+            const firstCell = cells[0];
+            const directionDiv = firstCell.querySelector('[data-testid^="direction-"]');
+            if (!directionDiv) {
+                console.warn(`행 ${index}: 방향 div를 찾을 수 없음.`);
+                return;
+            }
+            
+            const isLong = directionDiv.dataset.testid === 'direction-long';
+            const coinNameSpan = firstCell.querySelector('div > span:nth-child(2)');
+            if (!coinNameSpan) {
+                console.warn(`행 ${index}: 코인 이름을 찾을 수 없음.`);
+                return;
+            }
+            
+            const coinName = coinNameSpan.textContent.trim();
+            
+            // 필터링
+            if (coinFilter && coinName.toUpperCase() !== coinFilter.toUpperCase()) {
+                return;
+            }
+
+            // 두 번째 td에서 포지션 크기
+            const sizeCell = cells[1];
+            const sizeSpans = sizeCell.querySelectorAll('span');
+            const positionSize = sizeSpans[0] ? sizeSpans[0].textContent.trim() : '0';
+            
+            // 포지션 방향 반영 (short인 경우 음수)
+            const finalPosition = isLong ? positionSize : `-${positionSize}`;
+
+            // 7번째 td (index 6)에서 PnL
+            const pnlCell = cells[6];
+            let unrealizedPnl = '0';
+            const pnlDiv = pnlCell.querySelector('div');
+            if (pnlDiv) {
+                // "$101.50 (3.13%)" 형태에서 금액 부분만 추출
+                const pnlText = pnlDiv.textContent.trim();
+                const pnlMatch = pnlText.match(/([+-]?\$[\d,]+\.?\d*)/);
+                if (pnlMatch) {
+                    unrealizedPnl = pnlMatch[1];
+                }
+            }
+
+            // 9번째 td (index 8)에서 Funding
+            const fundingCell = cells[8];
+            let funding = '0';
+            const fundingDiv = fundingCell.querySelector('div');
+            if (fundingDiv) {
+                funding = fundingDiv.textContent.trim();
+            }
+
+            positions.push({
+                coin: coinName,
+                position: finalPosition,
+                pnl: unrealizedPnl,
+                funding: funding
+            });
+
+            console.log(`포지션 파싱 성공: ${coinName}, Size: ${finalPosition}, PnL: ${unrealizedPnl}, Funding: ${funding}`);
+
+        } catch (e) {
+            console.error(`행 ${index} 파싱 중 오류:`, e);
+        }
     });
+
     return positions;
 }
 
 function getPortfolioValue() {
-    const portfolioContainer = document.querySelector('[data-testid="portfolio-summary"]');
-    if (!portfolioContainer) return null;
+    
     try {
-        const valueSpan = Array.from(portfolioContainer.querySelectorAll('span')).find(s => s.textContent.includes('$'));
-        return valueSpan ? valueSpan.textContent.trim() : null;
+        // 페이지 내의 모든 <p> 태그를 순회
+        const allParagraphs = document.querySelectorAll('p');
+        let tradingEquityValue = null;
+
+        allParagraphs.forEach(p => {
+            if (p.textContent.trim() === 'Trading Equity:') {
+                // p 태그를 감싸고 있는 row 컨테이너 (.flex.w-full.justify-between)를 찾음
+                const rowContainer = p.closest('.flex.w-full.justify-between');
+                if (rowContainer) {
+                    // 해당 row 컨테이너 안에서 값을 담고 있는 span을 찾음
+                    const valueSpan = rowContainer.querySelector('.tabular-nums span');
+                    if (valueSpan) {
+                        tradingEquityValue = valueSpan.textContent.trim();
+                    }
+                }
+            }
+        });
+
+        if (tradingEquityValue) {
+            console.log(`Trading Equity (방법 2): ${tradingEquityValue}`);
+            return tradingEquityValue;
+        }
+
+        // --- 두 방법 모두 실패 ---
+        console.error("오류: 포트폴리오 컨테이너(방법 1) 또는 'Trading Equity:'(방법 2)를 찾을 수 없음.");
+        return null;
+
     } catch (e) {
-        console.error("포트폴리오 값 파싱 오류:", e);
+        console.error("Trading Equity (방법 2) 파싱 중 오류 발생:", e);
         return null;
     }
 }
