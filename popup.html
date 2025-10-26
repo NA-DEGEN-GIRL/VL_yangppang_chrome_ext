@@ -3,41 +3,36 @@
 <head>
     <title>Hedge Trader</title>
     <style>
-        body { font-family: sans-serif; width: 320px; padding: 10px; }
-        .input-group, .button-group { margin-bottom: 10px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"], input[type="number"], select { width: 100%; padding: 5px; box-sizing: border-box; }
-        button { width: 100%; padding: 8px; margin-top: 5px; cursor: pointer; }
-        .button-group { display: flex; gap: 5px; }
-        hr { border: 0; border-top: 1px solid #ccc; margin: 15px 0; }
+        /* comment: 스크롤바 제거를 위해 여백과 패딩 축소 */
+        body { font-family: sans-serif; width: 320px; padding: 8px; }
+        .input-group, .button-group { margin-bottom: 8px; }
+        label { display: block; margin-bottom: 4px; font-weight: bold; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 4px; box-sizing: border-box; }
+        button { width: 100%; padding: 6px; margin-top: 4px; cursor: pointer; }
+        .button-group { display: flex; gap: 4px; }
+        hr { border: 0; border-top: 1px solid #ccc; margin: 10px 0; }
         
-        /* 테이블 공통 스타일 */
+        /* 테이블 공통 스타일 (패딩 축소) */
         .info-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             font-size: 12px;
         }
         .info-table th, .info-table td {
             border: 1px solid #ddd;
-            padding: 6px;
+            padding: 4px; /* 패딩 축소 */
             text-align: right;
         }
-        .info-table th {
-            background-color: #f2f2f2;
-            text-align: center;
-        }
-        .info-table td:first-child {
-            text-align: left;
-            font-weight: bold;
-        }
-        /* Balance 테이블의 마지막 행 스타일 */
-        #balance-table .total-row td {
-            font-weight: bold;
-        }
+        .info-table th { background-color: #f2f2f2; text-align: center; }
+        .info-table td:first-child { text-align: left; font-weight: bold; }
+        #balance-table .total-row td { font-weight: bold; }
     </style>
 </head>
 <body>
+    <!-- comment: 측면 패널 전환 버튼 추가 -->
+    <button id="toggleDisplayModeBtn" style="margin-bottom: 10px;">Switch to Side Panel</button>
+
     <div class="input-group">
         <label for="coinSymbol">Coin Symbol (e.g., ETH, SOL):</label>
         <div class="button-group">
@@ -108,7 +103,6 @@
         <button id="lSellVBuy">L-Sell, V-Buy</button>
     </div>
 
-    <!-- 오더북 인덱스 드롭다운 메뉴 -->
     <div class="input-group">
         <label for="orderbookIndex">Lighter Orderbook (X = Off):</label>
         <select id="orderbookIndex">

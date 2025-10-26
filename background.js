@@ -1,3 +1,9 @@
+// comment: 확장 프로그램 설치 시 초기 상태 설정
+chrome.runtime.onInstalled.addListener(() => {
+    chrome.storage.local.set({ displayMode: 'popup' });
+    chrome.action.setPopup({ popup: 'popup.html' });
+});
+
 async function findTradingTabs() {
     const tabs = await chrome.tabs.query({});
     const lighterTab = tabs.find(tab => tab.url && tab.url.includes('app.lighter.xyz/trade/'));
@@ -28,7 +34,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     (async () => {
         const { lighterTab, variationalTab } = await findTradingTabs();
 
-        if (request.action === 'getInfo') {
+        if (request.action === 'toggleDisplayMode') {
+            const { displayMode } = await chrome.storage.local.get('displayMode');
+            if (displayMode === 'popup') {
+                await chrome.storage.local.set({ displayMode: 'sidePanel' });
+                await chrome.action.setPopup({ popup: '' });
+                const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+                await chrome.sidePanel.open({ tabId: tab.id });
+            } else {
+                await chrome.storage.local.set({ displayMode: 'popup' });
+                await chrome.action.setPopup({ popup: 'popup.html' });
+            }
+        } else if (request.action === 'getInfo') {
             let lighterData = null, variationalData = null;
             let lighterPortfolioValue = '0', variationalPortfolioValue = '0';
             try {
@@ -52,19 +69,23 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             chrome.runtime.sendMessage({ action: 'updateDisplay', lighterData, variationalData, lighterPortfolioValue, variationalPortfolioValue });
 
         } else if (request.action === 'executeHedgeOrder') {
-            // comment: 오더북 인덱스 값에 따라 분기 처리
+            // comment: 'X' 선택 여부에 따라 Market 버튼 클릭 로직 추가
             if (lighterTab) {
                 if (request.orderbookIndex === 'X') {
-                    // 'X'일 경우, 기존의 Buy/Sell 탭 클릭 방식 사용
-                    executeOnTab(lighterTab.id, 'lighter.js', 'selectOrderType', [request.lighterOrder]);
+                    // 'X'일 경우, Market 버튼을 먼저 클릭
+                    await executeOnTab(lighterTab.id, 'lighter.js', 'clickMarketButton');
+                    await new Promise(resolve => setTimeout(resolve, 100)); // UI 업데이트 대기
+                    await executeOnTab(lighterTab.id, 'lighter.js', 'selectOrderType', [request.lighterOrder]);
                 } else {
-                    // 숫자일 경우, 새로운 오더북 클릭 방식 사용
+                    // 숫자가 선택된 경우 (지정가), Buy/Sell 탭을 먼저 클릭
+                    await executeOnTab(lighterTab.id, 'lighter.js', 'selectOrderType', [request.lighterOrder]);
+                    await new Promise(resolve => setTimeout(resolve, 150)); // UI 업데이트 대기
                     const index = parseInt(request.orderbookIndex, 10);
-                    executeOnTab(lighterTab.id, 'lighter.js', 'clickOrderBookPrice', [request.lighterOrder, index]);
+                    await executeOnTab(lighterTab.id, 'lighter.js', 'clickOrderBookPrice', [request.lighterOrder, index]);
                 }
             }
             if (variationalTab) {
-                executeOnTab(variationalTab.id, 'variational.js', 'selectOrderType', [request.variationalOrder]);
+                await executeOnTab(variationalTab.id, 'variational.js', 'selectOrderType', [request.variationalOrder]);
             }
         
         } else if (request.action === 'setQuantity') {

@@ -432,6 +432,39 @@ function clickOrderBookPrice(orderType, index) {
     }
 }
 
+// comment: 시장가(Market) 버튼 클릭 함수 추가
+function clickMarketButton() {
+    const marketButton = document.querySelector('[data-testid="select-order-type-market"]');
+    if (marketButton) {
+        marketButton.click();
+        console.log("성공: Market 버튼 클릭.");
+    } else {
+        console.error("오류: Market 버튼을 찾을 수 없음.");
+    }
+}
+
+function getPositions(coinFilter = null) {
+    let positions = [];
+    let positionRows = Array.from(document.querySelectorAll('div[data-testid="positions-table-row"]'));
+    if (positionRows.length === 0) return positions;
+    positionRows.forEach((row) => {
+        try {
+            const coinSpan = row.querySelector('span[title$="-PERP"]');
+            if(!coinSpan) return;
+            const coinName = coinSpan.getAttribute('title').replace('-PERP','').trim()
+            if (coinFilter && coinName.toUpperCase() !== coinFilter.toUpperCase()) return;
+            const cells = row.querySelectorAll(':scope > div');
+            if (cells.length < 9) return;
+            const pnlCell = Array.from(cells).find(cell => cell.querySelector('span.text-ellipsis'));
+            const pnlSpan = pnlCell.querySelector('span.text-ellipsis');
+            const unrealizedPnl = pnlSpan.textContent.trim().split(' (')[0];
+            const funding = cells[cells.length -1].textContent.trim();
+            const positionSize = cells[1].textContent.trim();
+            positions.push({ coin: coinName, position: positionSize, pnl: unrealizedPnl, funding: funding });
+        } catch (e) { console.error(`포지션 파싱 오류:`, e); }
+    });
+    return positions;
+}
 
 
 window.setQuantity = setQuantity;
@@ -440,3 +473,4 @@ window.clickSubmitButton = clickSubmitButton;
 window.getPositions = getPositions; // getPositions 함수를 window에 할당 (추가된 부분)
 window.getPortfolioValue = getPortfolioValue;
 window.clickOrderBookPrice = clickOrderBookPrice;
+window.clickMarketButton = clickMarketButton; // 추가된 부분
