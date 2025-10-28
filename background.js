@@ -37,12 +37,13 @@ function stopAutoHedge(errorMessage = null) {
     if (autoHedgeState.intervalId) {
         clearInterval(autoHedgeState.intervalId);
     }
-    if (!autoHedgeState.isRunning && !autoHedgeState.isHedging) return;
+    //if (!autoHedgeState.isRunning && !autoHedgeState.isHedging) return;
 
     autoHedgeState.isRunning = false;
     autoHedgeState.isHedging = false;
     autoHedgeState.lockTimestamp = null;
     autoHedgeState.intervalId = null;
+    autoHedgeState.lastHedgeQuantity = null;
 
     chrome.runtime.sendMessage({
         action: 'updateAutoHedgeStatus',
@@ -103,7 +104,7 @@ async function checkAndHedge(delta, lockTimeout) {
         });
         
         // comment: 순포지션의 절대값이 delta 이상일 때만 주문 실행
-        if (hedgeQuantity >= delta && autoHedgeState.isHedging == false) {
+        if (hedgeQuantity >= delta) {
             autoHedgeState.isHedging = true;
             autoHedgeState.lockTimestamp = Date.now();
             
@@ -145,15 +146,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     (async () => {
         if (request.action === 'startAutoHedge') {
             if (autoHedgeState.isRunning) return;
-            autoHedgeState = {
-                isRunning: true,
-                isHedging: false,
-                lockTimestamp: null,
-                lastHedgeQuantity: null,
-                intervalId: setInterval(checkAndHedge, request.interval, request.delta, request.lockTimeout),
-                originalQuantity: request.originalQuantity,
-                coin: request.coin
-            };
+            
+            // comment: [치명적 오류 수정] 'autoHedgeState = { ... }'와 같이 객체를 완전히 새로 할당하면,
+            // 기존 객체를 참조하는 stopAutoHedge 함수가 intervalId를 찾지 못해 clearInterval이 실패합니다.
+            // 따라서 객체를 새로 만들지 않고, 기존 객체의 속성을 변경하는 방식으로 수정해야 합니다.
+            autoHedgeState.isRunning = true;
+            autoHedgeState.isHedging = false;
+            autoHedgeState.lockTimestamp = null;
+            autoHedgeState.lastHedgeQuantity = null;
+            autoHedgeState.originalQuantity = request.originalQuantity;
+            autoHedgeState.coin = request.coin;
+            autoHedgeState.intervalId = setInterval(checkAndHedge, request.interval, request.delta, request.lockTimeout);
+
             chrome.runtime.sendMessage({ action: 'updateAutoHedgeStatus', status: 'Monitoring started...' });
             return;
         }
