@@ -103,26 +103,32 @@ async function checkAndHedge(delta, lockTimeout) {
         });
         
         // comment: 순포지션의 절대값이 delta 이상일 때만 주문 실행
-        if (hedgeQuantity >= delta) {
+        if (hedgeQuantity >= delta && autoHedgeState.isHedging == false) {
             autoHedgeState.isHedging = true;
             autoHedgeState.lockTimestamp = Date.now();
             
             // comment: 순포지션의 부호에 따라 헷징 방향 결정
             const hedgeDirection = netPosition > 0 ? 'sell' : 'buy';
+            const quantityToSet = String(hedgeQuantity.toFixed(5));
 
             console.log(`Delta(${delta}) 이상의 불균형(${hedgeQuantity}) 감지. Variational에 [${hedgeDirection}] 주문 실행.`);
             
-            await executeOnTab(variationalTab.id, 'variational.js', 'setQuantity', [String(hedgeQuantity.toFixed(5))]);
-            await new Promise(resolve => setTimeout(resolve, 175));
+            // comment: 이전 헷지 수량과 동일하면 setQuantity 스크립트 실행을 건너뛰는 최적화 로직
+            if (quantityToSet !== autoHedgeState.lastHedgeQuantity) {
+                console.log(`New hedge quantity detected. Updating input to ${quantityToSet}`);
+                await executeOnTab(variationalTab.id, 'variational.js', 'setQuantity', [quantityToSet]);
+                autoHedgeState.lastHedgeQuantity = quantityToSet; // 마지막 헷지 수량 업데이트
+                await new Promise(resolve => setTimeout(resolve, 200)); // 수량 입력 필드 업데이트 대기
+            }
 
-            await executeOnTab(variationalTab.id, 'variational.js', 'clickMarketButton');
-            await new Promise(resolve => setTimeout(resolve, 100));
+            //await executeOnTab(variationalTab.id, 'variational.js', 'clickMarketButton');
+            //await new Promise(resolve => setTimeout(resolve, 100));
 
             await executeOnTab(variationalTab.id, 'variational.js', 'selectOrderType', [hedgeDirection]);
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 200));
 
             await executeOnTab(variationalTab.id, 'variational.js', 'clickSubmitButton');
-
+            
             chrome.runtime.sendMessage({
                 action: 'updateAutoHedgeStatus',
                 status: `Hedging ${hedgeQuantity.toFixed(4)} on Variational...`
@@ -143,7 +149,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 isRunning: true,
                 isHedging: false,
                 lockTimestamp: null,
-                intervalId: setInterval(() => checkAndHedge(request.delta, request.lockTimeout), request.interval),
+                lastHedgeQuantity: null,
+                intervalId: setInterval(checkAndHedge, request.interval, request.delta, request.lockTimeout),
                 originalQuantity: request.originalQuantity,
                 coin: request.coin
             };
