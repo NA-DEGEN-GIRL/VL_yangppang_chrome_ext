@@ -113,13 +113,13 @@ async function checkAndHedge(delta, lockTimeout) {
             console.log(`Delta(${delta}) 이상의 불균형(${hedgeQuantity}) 감지. Variational에 [${hedgeDirection}] 주문 실행.`);
             
             await executeOnTab(variationalTab.id, 'variational.js', 'setQuantity', [String(hedgeQuantity.toFixed(5))]);
-            await new Promise(resolve => setTimeout(resolve, 150));
+            await new Promise(resolve => setTimeout(resolve, 175));
 
             await executeOnTab(variationalTab.id, 'variational.js', 'clickMarketButton');
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await new Promise(resolve => setTimeout(resolve, 100));
 
             await executeOnTab(variationalTab.id, 'variational.js', 'selectOrderType', [hedgeDirection]);
-            await new Promise(resolve => setTimeout(resolve, 50));
+            await new Promise(resolve => setTimeout(resolve, 100));
 
             await executeOnTab(variationalTab.id, 'variational.js', 'clickSubmitButton');
 
