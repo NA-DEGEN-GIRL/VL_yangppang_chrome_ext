@@ -3,66 +3,99 @@
 <head>
     <title>Hedge Trader</title>
     <style>
-        body { font-family: sans-serif; width: 320px; padding: 8px; }
-        .input-group, .button-group { margin-bottom: 8px; }
-        label { display: block; margin-bottom: 4px; font-weight: bold; }
-        input[type="text"], input[type="number"], select { width: 100%; padding: 4px; box-sizing: border-box; }
-        button { width: 100%; padding: 6px; margin-top: 4px; cursor: pointer; }
-        .button-group { display: flex; gap: 4px; }
-        hr { border: 0; border-top: 1px solid #ccc; margin: 10px 0; }
-        
-        .info-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 10px;
-            font-size: 12px;
+        /* comment: 스크롤바 제거를 위해 전체적인 여백/패딩 압축 */
+        body { 
+            font-family: sans-serif; 
+            width: 320px; 
+            padding: 8px; 
+            font-size: 12px; 
+            margin: 0;
         }
-        .info-table th, .info-table td {
+        .input-group, .button-group { 
+            margin-bottom: 4px; /* 여백 줄임 */
+        }
+        .control-section {
             border: 1px solid #ddd;
-            padding: 4px;
-            text-align: right;
+            padding: 5px; /* 패딩 줄임 */
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            margin-bottom: 5px; /* 여백 줄임 */
+        }
+        label { 
+            display: block; 
+            margin-bottom: 2px; /* 여백 줄임 */
+            font-weight: bold; 
+        }
+        input[type="text"], input[type="number"], select { 
+            width: 100%; 
+            padding: 3px; /* 패딩 줄임 */
+            box-sizing: border-box; 
+        }
+        button { 
+            width: 100%; 
+            padding: 5px; /* 패딩 줄임 */
+            margin-top: 2px; /* 여백 줄임 */
+            cursor: pointer; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            background-color: #f0f0f0; 
+        }
+        .button-group { 
+            display: flex; 
+            gap: 4px; 
+        }
+        hr { 
+            border: 0; 
+            border-top: 1px solid #ccc; 
+            margin: 6px 0; /* 여백 줄임 */
+        }
+        .info-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 6px; /* 여백 줄임 */
+            font-size: 11px; /* 폰트 약간 줄임 */
+        }
+        .info-table th, .info-table td { 
+            border: 1px solid #ddd; 
+            padding: 3px; /* 패딩 줄임 */
+            text-align: right; 
         }
         .info-table th { background-color: #f2f2f2; text-align: center; }
         .info-table td:first-child { text-align: left; font-weight: bold; }
         #balance-table .total-row td { font-weight: bold; }
         
-        /* 오더북 자동 업데이트 섹션 스타일 */
-        .orderbook-section {
-            border: 1px solid #ddd;
-            padding: 6px;
-            border-radius: 4px;
-            background-color: #f9f9f9;
+        .flex-row { 
+            display: flex; 
+            align-items: center; 
+            gap: 6px; /* 간격 약간 줄임 */
+            margin-top: 4px; 
         }
-        .auto-update-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 4px;
+        .flex-row input { width: 55px; } /* 너비 약간 줄임 */
+        .toggle-btn, #autoLimitHedgeBtn { 
+            background-color: #4CAF50; 
+            color: white; 
+            border: none; 
         }
-        .auto-update-row input {
-            width: 60px;
+        .toggle-btn.active, #autoLimitHedgeBtn.active { 
+            background-color: #f44336; 
         }
-        #autoUpdateToggle {
-            background-color: #4CAF50;
-            color: white;
-            padding: 4px 8px;
-            font-size: 12px;
-        }
-        #autoUpdateToggle.active {
-            background-color: #f44336;
+        #autoHedgeStatus {
+            font-size: 10px; /* 폰트 약간 줄임 */
+            text-align: center; 
+            margin-top: 3px; /* 여백 줄임 */
+            color: #555; 
+            height: 1em;
         }
     </style>
 </head>
 <body>
     <div class="input-group">
-        <label for="coinSymbol">Coin Symbol (e.g., ETH, SOL):</label>
         <div class="button-group">
             <input type="text" id="coinSymbol" placeholder="BTC">
             <button id="setCoinBtn">Set</button>
         </div>
     </div>
 
-    <!-- 포지션 테이블 -->
     <table id="position-table" class="info-table">
         <thead>
             <tr>
@@ -88,7 +121,6 @@
         </tbody>
     </table>
 
-    <!-- Balance 테이블 -->
     <table id="balance-table" class="info-table">
         <thead>
             <tr>
@@ -113,7 +145,7 @@
     </table>
 
     <hr>
-
+    
     <div class="input-group">
         <label for="quantity">Quantity:</label>
         <input type="text" id="quantity" placeholder="0.001">
@@ -124,8 +156,7 @@
         <button id="lSellVBuy">L-Sell, V-Buy</button>
     </div>
 
-    <!-- 오더북 섹션 (수정됨) -->
-    <div class="orderbook-section">
+    <div class="control-section">
         <div class="input-group" style="margin-bottom: 4px;">
             <label for="orderbookIndex">Lighter Orderbook (X = Off):</label>
             <select id="orderbookIndex">
@@ -143,18 +174,30 @@
                 <option value="10">10</option>
             </select>
         </div>
-        
-        <!-- 자동 업데이트 컨트롤 (추가됨) -->
-        <div class="auto-update-row">
-            <span style="font-size: 12px;">Auto-refresh:</span>
-            <input type="number" id="refreshInterval" min="100" max="5000" value="200" step="100">
-            <span style="font-size: 12px;">ms</span>
-            <button id="autoUpdateToggle">Start</button>
+        <div class="flex-row">
+            <label for="priceRefreshInterval" style="font-weight: normal;">Price Refresh:</label>
+            <input type="number" id="priceRefreshInterval" min="100" max="5000" value="200" step="100">
+            <span>ms</span>
+            <button id="autoPriceUpdateToggle" class="toggle-btn">Start</button>
         </div>
     </div>
+    
+    <div class="control-section">
+        <button id="autoLimitHedgeBtn">Auto limit L -> market V</button>
+        <div class="flex-row">
+            <label for="deltaThreshold" style="font-weight: normal;">Delta:</label>
+            <input type="text" id="deltaThreshold" value="0.001" style="width: 70px;">
+            <label for="hedgeInterval" style="font-weight: normal;">Interval:</label>
+            <input type="number" id="hedgeInterval" min="100" max="5000" value="500" step="100">
+        </div>
+        <div class="flex-row">
+            <label for="lockTimeout" style="font-weight: normal;">Lock Timeout (s):</label>
+            <input type="number" id="lockTimeout" min="1" max="60" value="5" step="1">
+        </div>
+        <p id="autoHedgeStatus" style="font-size: 10px;">Status: Idle</p>
+    </div>
 
-    <button id="submitOrder" style="margin-top: 8px;">Submit ALL Orders</button>
-
+    <button id="submitOrder" style="margin-top: 6px;">Submit ALL Orders</button>
     <div class="button-group">
         <button id="submitLighter">Submit L</button>
         <button id="submitVariational">Submit V</button>
