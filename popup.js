@@ -19,6 +19,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const lockTimeoutInput = document.getElementById('lockTimeout');
     const autoHedgeStatusP = document.getElementById('autoHedgeStatus');
 
+    const autoSubmitToggleBtn = document.getElementById('autoSubmitToggleBtn');
+    const autoSubmitTotalInput = document.getElementById('autoSubmitTotal');
+    const autoSubmitIntervalMinInput = document.getElementById('autoSubmitIntervalMin');
+    const autoSubmitIntervalMaxInput = document.getElementById('autoSubmitIntervalMax');
+    const autoSubmitStatusP = document.getElementById('autoSubmitStatus');
+
     const lighterSizeCell = document.getElementById('lighter-size');
     const lighterPnlCell = document.getElementById('lighter-pnl');
     const lighterFundingCell = document.getElementById('lighter-funding');
@@ -33,10 +39,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     let autoPriceUpdateInterval = null; 
     let currentOrderType = null; 
 
-    // --- 설정 저장/불러오기 로직 (추가된 부분) ---
+    // --- 설정 저장/불러오기 로직 ---
     const SETTING_IDS = [
         'coinSymbol', 'quantity', 'orderbookIndex', 'priceRefreshInterval',
-        'deltaThreshold', 'hedgeInterval', 'lockTimeout'
+        'deltaThreshold', 'hedgeInterval', 'lockTimeout',
+        'autoSubmitTotal', 'autoSubmitIntervalMin', 'autoSubmitIntervalMax'
     ];
 
     async function loadSettings() {
@@ -54,9 +61,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         chrome.storage.local.set({ [key]: value });
     }
 
-    // 설정 불러오기 실행
     await loadSettings();
-    // 설정 값 변경 시 자동 저장 리스너 추가
     SETTING_IDS.forEach(id => {
         const element = document.getElementById(id);
         if (element) {
@@ -67,22 +72,39 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // --- 포매팅 함수들 ---
-    function formatSize(value) { const num = parseFloat(value); return isNaN(num) ? '0.0000' : num.toFixed(4); }
-    function formatPnlAndFunding(value) { const num = parseFloat(String(value).replace(/[^0-9.-]/g, '')); return isNaN(num) ? '0.0' : num.toFixed(1); }
-    function parseCurrency(value) { if (!value || typeof value !== 'string') return 0; return parseFloat(value.replace(/[^0-9.-]/g, '')); }
-    function formatCurrency(num) { if (isNaN(num)) return '$0.00'; return num.toLocaleString('en-US', { style: 'currency', currency: 'USD' }); }
-    
-    // --- 데이터 요청 및 자동 갱신 ---
+    // --- 포맷팅 및 데이터 요청 함수 ---
+    function formatSize(value) {
+        const num = parseFloat(value);
+        return isNaN(num) ? '0.0000' : num.toFixed(4);
+    }
+
+    function formatPnlAndFunding(value) {
+        const num = parseFloat(String(value).replace(/[^0-9.-]/g, ''));
+        return isNaN(num) ? '0.0' : num.toFixed(1);
+    }
+
+    function parseCurrency(value) {
+        if (!value || typeof value !== 'string') return 0;
+        return parseFloat(value.replace(/[^0-9.-]/g, ''));
+    }
+
+    function formatCurrency(num) {
+        if (isNaN(num)) return '$0.00';
+        return num.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+    }
+
     function requestData() {
         const coin = coinSymbolInput.value.trim().toUpperCase() || 'BTC';
         chrome.runtime.sendMessage({ action: 'getInfo', coin: coin });
     }
-    positionInterval = setInterval(requestData, 1000);
+
+    // --- 자동 업데이트 및 정리 ---
+    positionInterval = setInterval(requestData, 1000); // 1초마다 데이터 요청
     window.addEventListener('unload', () => { 
         if (positionInterval) clearInterval(positionInterval);
         if (autoPriceUpdateInterval) clearInterval(autoPriceUpdateInterval);
-        chrome.runtime.sendMessage({ action: 'stopAutoHedge' }); // 팝업 닫히면 모든 자동화 중지
+        chrome.runtime.sendMessage({ action: 'stopAutoHedge' });
+        chrome.runtime.sendMessage({ action: 'stopAutoSubmit' });
     });
 
     // --- 백그라운드 메시지 수신 ---
@@ -92,9 +114,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             lighterSizeCell.textContent = lighterData ? formatSize(lighterData.position) : '0.0000';
             lighterPnlCell.textContent = lighterData ? formatPnlAndFunding(lighterData.pnl) : '0.0';
             lighterFundingCell.textContent = lighterData ? formatPnlAndFunding(lighterData.funding) : '0.0';
+            
             variationalSizeCell.textContent = variationalData ? formatSize(variationalData.position) : '0.0000';
             variationalPnlCell.textContent = variationalData ? formatPnlAndFunding(variationalData.pnl) : '0.0';
             variationalFundingCell.textContent = variationalData ? formatPnlAndFunding(variationalData.funding) : '0.0';
+
             const lValue = parseCurrency(lighterPortfolioValue);
             const vValue = parseCurrency(variationalPortfolioValue);
             lighterBalanceCell.textContent = formatCurrency(lValue);
@@ -112,28 +136,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(request.originalQuantity) {
                 quantityInput.value = request.originalQuantity;
             }
+        } else if (request.action === 'updateAutoSubmitStatus') {
+            autoSubmitStatusP.textContent = `Status: ${request.status}`;
+            if (request.status === 'Idle' || request.status.startsWith('Error') || request.status.startsWith('Completed')) {
+                autoSubmitToggleBtn.textContent = 'Auto Submit All';
+                autoSubmitToggleBtn.classList.remove('active');
+            } else {
+                autoSubmitToggleBtn.textContent = 'STOP Auto Submit';
+                autoSubmitToggleBtn.classList.add('active');
+            }
         }
     });
 
-    // --- 자동 가격 업데이트 로직 ---
+    // --- 가격 자동 새로고침 ---
     function startAutoPriceUpdate() {
-        const orderbookIndex = orderbookIndexInput.value;
-        const interval = parseInt(priceRefreshIntervalInput.value) || 200;
-        if (orderbookIndex === 'X' || !currentOrderType) {
-            alert('Please select an orderbook index (not X) and a direction (L-Buy/V-Sell or L-Sell/V-Buy) first.');
-            return;
-        }
         stopAutoPriceUpdate();
-        autoPriceUpdateInterval = setInterval(() => {
-            chrome.runtime.sendMessage({ 
-                action: 'updateOrderbookPrice',
-                lighterOrder: currentOrderType,
-                orderbookIndex: orderbookIndexInput.value // 최신 값 사용
-            });
-        }, interval);
-        autoPriceUpdateToggleBtn.textContent = 'Stop';
-        autoPriceUpdateToggleBtn.classList.add('active');
+        const interval = parseInt(priceRefreshIntervalInput.value, 10);
+        if (orderbookIndexInput.value !== 'X' && interval > 0 && currentOrderType) {
+            autoPriceUpdateInterval = setInterval(() => {
+                chrome.runtime.sendMessage({ action: 'updateOrderbookPrice', lighterOrder: currentOrderType, orderbookIndex: orderbookIndexInput.value });
+            }, interval);
+            autoPriceUpdateToggleBtn.textContent = 'Stop';
+            autoPriceUpdateToggleBtn.classList.add('active');
+        }
     }
+
     function stopAutoPriceUpdate() {
         if (autoPriceUpdateInterval) {
             clearInterval(autoPriceUpdateInterval);
@@ -142,14 +169,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         autoPriceUpdateToggleBtn.textContent = 'Start';
         autoPriceUpdateToggleBtn.classList.remove('active');
     }
+    
+    // --- 이벤트 리스너 ---
+    autoPriceUpdateToggleBtn.addEventListener('click', () => {
+        if (autoPriceUpdateToggleBtn.classList.contains('active')) {
+            stopAutoPriceUpdate();
+        } else {
+            startAutoPriceUpdate();
+        }
+    });
 
-    // --- 자동 헤지 로직 ---
+    orderbookIndexInput.addEventListener('change', () => {
+        if (autoPriceUpdateToggleBtn.classList.contains('active')) {
+            startAutoPriceUpdate();
+        }
+    });
+
     autoLimitHedgeBtn.addEventListener('click', () => {
         if (autoLimitHedgeBtn.classList.contains('active')) {
             chrome.runtime.sendMessage({ action: 'stopAutoHedge' });
         } else {
-            // L-Buy/L-Sell 버튼을 눌러 currentOrderType이 설정되었는지 확인
-            // 이 값은 이제 직접 사용되지 않지만, 사용자가 방향을 인지했다는 확인용으로 사용
             if (!currentOrderType) {
                 alert('Please select a hedging direction first (L-Buy/V-Sell or L-Sell/V-Buy).');
                 return;
@@ -164,35 +203,55 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
     });
+    
+    autoSubmitToggleBtn.addEventListener('click', () => {
+        if (autoSubmitToggleBtn.classList.contains('active')) {
+            chrome.runtime.sendMessage({ action: 'stopAutoSubmit' });
+        } else {
+            const total = parseInt(autoSubmitTotalInput.value, 10);
+            const min = parseFloat(autoSubmitIntervalMinInput.value);
+            const max = parseFloat(autoSubmitIntervalMaxInput.value);
 
-    // --- 나머지 이벤트 리스너들 ---
-    autoPriceUpdateToggleBtn.addEventListener('click', () => {
-        autoPriceUpdateInterval ? stopAutoPriceUpdate() : startAutoPriceUpdate();
+            if (isNaN(total) || total <= 0) { alert('Total clicks must be a number greater than 0.'); return; }
+            if (isNaN(min) || isNaN(max) || min <= 0 || max <= 0) { alert('Intervals must be numbers greater than 0.'); return; }
+            if (min > max) { alert('Min interval cannot be greater than Max interval.'); return; }
+
+            chrome.runtime.sendMessage({
+                action: 'startAutoSubmit',
+                total: total,
+                minInterval: min * 1000,
+                maxInterval: max * 1000
+            });
+        }
     });
-    orderbookIndexInput.addEventListener('change', () => {
-        if (orderbookIndexInput.value === 'X') stopAutoPriceUpdate();
+    
+    quantityInput.addEventListener('input', (e) => {
+        if (e.target.value) chrome.runtime.sendMessage({ action: 'setQuantity', quantity: e.target.value });
     });
-    quantityInput.addEventListener('input', (e) => { 
-        if (e.target.value) chrome.runtime.sendMessage({ action: 'setQuantity', quantity: e.target.value }); 
-    });
+
     setCoinBtn.addEventListener('click', () => {
         const coin = coinSymbolInput.value.trim().toUpperCase();
         if (coin) {
             chrome.runtime.sendMessage({ action: 'setCoin', coin: coin });
-            setTimeout(requestData, 1000);
+            setTimeout(requestData, 1000); 
         }
     });
+
     lBuyVSellBtn.addEventListener('click', () => {
         currentOrderType = 'buy';
         chrome.runtime.sendMessage({ action: 'executeHedgeOrder', lighterOrder: 'buy', variationalOrder: 'sell', orderbookIndex: orderbookIndexInput.value });
-        if (orderbookIndexInput.value !== 'X' && autoPriceUpdateInterval) startAutoPriceUpdate();
+        if (orderbookIndexInput.value !== 'X' && autoPriceUpdateToggleBtn.classList.contains('active')) startAutoPriceUpdate();
     });
+
     lSellVBuyBtn.addEventListener('click', () => {
         currentOrderType = 'sell';
         chrome.runtime.sendMessage({ action: 'executeHedgeOrder', lighterOrder: 'sell', variationalOrder: 'buy', orderbookIndex: orderbookIndexInput.value });
-        if (orderbookIndexInput.value !== 'X' && autoPriceUpdateInterval) startAutoPriceUpdate();
+        if (orderbookIndexInput.value !== 'X' && autoPriceUpdateToggleBtn.classList.contains('active')) startAutoPriceUpdate();
     });
+
     submitOrderBtn.addEventListener('click', () => chrome.runtime.sendMessage({ action: 'submitOrder' }));
     submitLighterBtn.addEventListener('click', () => chrome.runtime.sendMessage({ action: 'submitLighter' }));
     submitVariationalBtn.addEventListener('click', () => chrome.runtime.sendMessage({ action: 'submitVariational' }));
+    
+    requestData();
 });

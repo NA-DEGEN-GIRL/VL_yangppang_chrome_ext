@@ -3,7 +3,6 @@
 <head>
     <title>Hedge Trader</title>
     <style>
-        /* comment: 스크롤바 제거를 위해 전체적인 여백/패딩 압축 */
         body { 
             font-family: sans-serif; 
             width: 320px; 
@@ -12,29 +11,29 @@
             margin: 0;
         }
         .input-group, .button-group { 
-            margin-bottom: 4px; /* 여백 줄임 */
+            margin-bottom: 4px;
         }
         .control-section {
             border: 1px solid #ddd;
-            padding: 5px; /* 패딩 줄임 */
+            padding: 5px;
             border-radius: 4px;
             background-color: #f9f9f9;
-            margin-bottom: 5px; /* 여백 줄임 */
+            margin-bottom: 5px;
         }
         label { 
             display: block; 
-            margin-bottom: 2px; /* 여백 줄임 */
+            margin-bottom: 2px;
             font-weight: bold; 
         }
         input[type="text"], input[type="number"], select { 
             width: 100%; 
-            padding: 3px; /* 패딩 줄임 */
+            padding: 3px;
             box-sizing: border-box; 
         }
         button { 
             width: 100%; 
-            padding: 5px; /* 패딩 줄임 */
-            margin-top: 2px; /* 여백 줄임 */
+            padding: 5px;
+            margin-top: 2px;
             cursor: pointer; 
             border: 1px solid #ccc; 
             border-radius: 4px; 
@@ -47,17 +46,17 @@
         hr { 
             border: 0; 
             border-top: 1px solid #ccc; 
-            margin: 6px 0; /* 여백 줄임 */
+            margin: 6px 0;
         }
         .info-table { 
             width: 100%; 
             border-collapse: collapse; 
-            margin-bottom: 6px; /* 여백 줄임 */
-            font-size: 11px; /* 폰트 약간 줄임 */
+            margin-bottom: 6px;
+            font-size: 11px;
         }
         .info-table th, .info-table td { 
             border: 1px solid #ddd; 
-            padding: 3px; /* 패딩 줄임 */
+            padding: 3px;
             text-align: right; 
         }
         .info-table th { background-color: #f2f2f2; text-align: center; }
@@ -67,22 +66,22 @@
         .flex-row { 
             display: flex; 
             align-items: center; 
-            gap: 6px; /* 간격 약간 줄임 */
+            gap: 6px;
             margin-top: 4px; 
         }
-        .flex-row input { width: 55px; } /* 너비 약간 줄임 */
-        .toggle-btn, #autoLimitHedgeBtn { 
+        .flex-row input { width: 55px; }
+        .toggle-btn, #autoLimitHedgeBtn, #autoSubmitToggleBtn {
             background-color: #4CAF50; 
             color: white; 
             border: none; 
         }
-        .toggle-btn.active, #autoLimitHedgeBtn.active { 
+        .toggle-btn.active, #autoLimitHedgeBtn.active, #autoSubmitToggleBtn.active {
             background-color: #f44336; 
         }
-        #autoHedgeStatus {
-            font-size: 10px; /* 폰트 약간 줄임 */
+        #autoHedgeStatus, #autoSubmitStatus {
+            font-size: 10px;
             text-align: center; 
-            margin-top: 3px; /* 여백 줄임 */
+            margin-top: 3px;
             color: #555; 
             height: 1em;
         }
@@ -195,6 +194,19 @@
             <input type="number" id="lockTimeout" min="1" max="60" value="5" step="1">
         </div>
         <p id="autoHedgeStatus" style="font-size: 10px;">Status: Idle</p>
+    </div>
+
+    <div class="control-section">
+        <button id="autoSubmitToggleBtn">Auto Submit All</button>
+        <div class="flex-row">
+            <label for="autoSubmitTotal" style="font-weight: normal;">Total:</label>
+            <input type="number" id="autoSubmitTotal" value="10" min="1" step="1" style="width: 45px;">
+            <label for="autoSubmitIntervalMin" style="font-weight: normal;">Min(s):</label>
+            <input type="number" id="autoSubmitIntervalMin" value="0.5" min="0.01" step="0.01" style="width: 45px;">
+            <label for="autoSubmitIntervalMax" style="font-weight: normal;">Max(s):</label>
+            <input type="number" id="autoSubmitIntervalMax" value="1.5" min="0.01" step="0.01" style="width: 45px;">
+        </div>
+        <p id="autoSubmitStatus" style="font-size: 10px;">Status: Idle</p>
     </div>
 
     <button id="submitOrder" style="margin-top: 6px;">Submit ALL Orders</button>

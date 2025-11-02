@@ -4,7 +4,17 @@ let autoHedgeState = {
     originalQuantity: '',
     coin: '',
     isHedging: false, 
-    lockTimestamp: null
+    lockTimestamp: null,
+    lastHedgeQuantity: null
+};
+
+let autoSubmitState = {
+    isRunning: false,
+    timeoutId: null,
+    totalClicks: 0,
+    clicksRemaining: 0,
+    minInterval: 0,
+    maxInterval: 0
 };
 
 async function findTradingTabs() {
@@ -37,7 +47,8 @@ function stopAutoHedge(errorMessage = null) {
     if (autoHedgeState.intervalId) {
         clearInterval(autoHedgeState.intervalId);
     }
-    //if (!autoHedgeState.isRunning && !autoHedgeState.isHedging) return;
+    
+    if (!autoHedgeState.isRunning) return;
 
     autoHedgeState.isRunning = false;
     autoHedgeState.isHedging = false;
@@ -65,7 +76,6 @@ async function checkAndHedge(delta, lockTimeout) {
                 chrome.runtime.sendMessage({ action: 'updateAutoHedgeStatus', status: 'Lock timed out, re-monitoring...' });
                 return;
             }
-            // 잠금 상태에서는 API 호출 없이 대기
             chrome.runtime.sendMessage({
                 action: 'updateAutoHedgeStatus',
                 status: `Waiting for hedge... (${Math.round(timeSinceLock / 1000)}s)`
@@ -84,18 +94,17 @@ async function checkAndHedge(delta, lockTimeout) {
         const lPosData = lighterPosArr ? lighterPosArr.find(p => p.coin === autoHedgeState.coin) : null;
         const vPosData = variationalPosArr ? variationalPosArr.find(p => p.coin === autoHedgeState.coin) : null;
 
-        // comment: 부호를 포함한 실제 포지션 크기 사용 (Abs 제거)
         const lSize = lPosData ? parseFloat(lPosData.position.replace(/,/g, '')) : 0;
         const vSize = vPosData ? parseFloat(vPosData.position.replace(/,/g, '')) : 0;
         
-        // comment: 순포지션 계산
         const netPosition = lSize + vSize;
         const hedgeQuantity = Math.abs(netPosition);
 
-        // 헷징 주문이 반영되면 잠금 해제
         if (hedgeQuantity < delta) {
-            autoHedgeState.isHedging = false;
-            autoHedgeState.lockTimestamp = null;
+            if (autoHedgeState.isHedging) {
+                 autoHedgeState.isHedging = false;
+                 autoHedgeState.lockTimestamp = null;
+            }
         }
         
         chrome.runtime.sendMessage({
@@ -103,38 +112,34 @@ async function checkAndHedge(delta, lockTimeout) {
             status: `Monitoring... L:${lSize.toFixed(4)} V:${vSize.toFixed(4)} Net:${netPosition.toFixed(4)}`
         });
         
-        // comment: 순포지션의 절대값이 delta 이상일 때만 주문 실행
         if (hedgeQuantity >= delta) {
             autoHedgeState.isHedging = true;
             autoHedgeState.lockTimestamp = Date.now();
             
-            // comment: 순포지션의 부호에 따라 헷징 방향 결정
             const hedgeDirection = netPosition > 0 ? 'sell' : 'buy';
             const quantityToSet = String(hedgeQuantity.toFixed(5));
 
             console.log(`Delta(${delta}) 이상의 불균형(${hedgeQuantity}) 감지. Variational에 [${hedgeDirection}] 주문 실행.`);
             
-            // comment: 이전 헷지 수량과 동일하면 setQuantity 스크립트 실행을 건너뛰는 최적화 로직
             if (quantityToSet !== autoHedgeState.lastHedgeQuantity) {
                 console.log(`New hedge quantity detected. Updating input to ${quantityToSet}`);
                 await executeOnTab(variationalTab.id, 'variational.js', 'setQuantity', [quantityToSet]);
-                autoHedgeState.lastHedgeQuantity = quantityToSet; // 마지막 헷지 수량 업데이트
-                await new Promise(resolve => setTimeout(resolve, 200)); // 수량 입력 필드 업데이트 대기
+                autoHedgeState.lastHedgeQuantity = quantityToSet;
+                await new Promise(resolve => setTimeout(resolve, 200));
             }
 
-            //await executeOnTab(variationalTab.id, 'variational.js', 'clickMarketButton');
-            //await new Promise(resolve => setTimeout(resolve, 100));
+            await executeOnTab(variationalTab.id, 'variational.js', 'clickMarketButton');
+            await new Promise(resolve => setTimeout(resolve, 100));
 
             await executeOnTab(variationalTab.id, 'variational.js', 'selectOrderType', [hedgeDirection]);
-            await new Promise(resolve => setTimeout(resolve, 200));
+            await new Promise(resolve => setTimeout(resolve, 100));
 
             await executeOnTab(variationalTab.id, 'variational.js', 'clickSubmitButton');
-            
+
             chrome.runtime.sendMessage({
                 action: 'updateAutoHedgeStatus',
                 status: `Hedging ${hedgeQuantity.toFixed(4)} on Variational...`
             });
-
         }
     } catch (error) {
         console.error('자동 헤징 중 오류 발생:', error);
@@ -142,14 +147,64 @@ async function checkAndHedge(delta, lockTimeout) {
     }
 }
 
+async function runAutoSubmitCycle() {
+    if (!autoSubmitState.isRunning || autoSubmitState.clicksRemaining <= 0) {
+        stopAutoSubmit(autoSubmitState.clicksRemaining <= 0 ? 'Completed' : 'Stopped');
+        return;
+    }
+
+    try {
+        chrome.runtime.sendMessage({
+            action: 'updateAutoSubmitStatus',
+            status: `Clicking... (${autoSubmitState.totalClicks - autoSubmitState.clicksRemaining + 1}/${autoSubmitState.totalClicks})`
+        });
+
+        const { lighterTab, variationalTab } = await findTradingTabs();
+        
+        console.log(`Auto-Submit: Clicking ALL. Clicks remaining: ${autoSubmitState.clicksRemaining}`);
+        
+        await Promise.all([
+            lighterTab ? executeOnTab(lighterTab.id, 'lighter.js', 'clickSubmitButton') : Promise.resolve(),
+            variationalTab ? executeOnTab(variationalTab.id, 'variational.js', 'clickSubmitButton') : Promise.resolve()
+        ]);
+
+        autoSubmitState.clicksRemaining--;
+
+        if (autoSubmitState.clicksRemaining > 0) {
+            const delay = Math.random() * (autoSubmitState.maxInterval - autoSubmitState.minInterval) + autoSubmitState.minInterval;
+            console.log(`Next click in ${Math.round(delay)}ms`);
+            autoSubmitState.timeoutId = setTimeout(runAutoSubmitCycle, delay);
+        } else {
+            console.log('Auto-Submit: All clicks completed.');
+            stopAutoSubmit('Completed');
+        }
+    } catch (error) {
+        console.error('Auto-Submit error:', error);
+        stopAutoSubmit(error.message);
+    }
+}
+
+function stopAutoSubmit(statusMessage = 'Stopped') {
+    if (autoSubmitState.timeoutId) {
+        clearTimeout(autoSubmitState.timeoutId);
+    }
+    
+    if (!autoSubmitState.isRunning) return;
+
+    autoSubmitState.isRunning = false;
+    autoSubmitState.timeoutId = null;
+    
+    const finalStatus = statusMessage === 'Completed' ? statusMessage : (statusMessage === 'Stopped' ? 'Idle' : `Error: ${statusMessage}`);
+    chrome.runtime.sendMessage({
+        action: 'updateAutoSubmitStatus',
+        status: finalStatus
+    });
+}
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     (async () => {
         if (request.action === 'startAutoHedge') {
             if (autoHedgeState.isRunning) return;
-            
-            // comment: [치명적 오류 수정] 'autoHedgeState = { ... }'와 같이 객체를 완전히 새로 할당하면,
-            // 기존 객체를 참조하는 stopAutoHedge 함수가 intervalId를 찾지 못해 clearInterval이 실패합니다.
-            // 따라서 객체를 새로 만들지 않고, 기존 객체의 속성을 변경하는 방식으로 수정해야 합니다.
             autoHedgeState.isRunning = true;
             autoHedgeState.isHedging = false;
             autoHedgeState.lockTimestamp = null;
@@ -157,13 +212,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             autoHedgeState.originalQuantity = request.originalQuantity;
             autoHedgeState.coin = request.coin;
             autoHedgeState.intervalId = setInterval(checkAndHedge, request.interval, request.delta, request.lockTimeout);
-
             chrome.runtime.sendMessage({ action: 'updateAutoHedgeStatus', status: 'Monitoring started...' });
             return;
         }
 
         if (request.action === 'stopAutoHedge') {
             stopAutoHedge();
+            return;
+        }
+        
+        if (request.action === 'startAutoSubmit') {
+            if (autoSubmitState.isRunning) return;
+            autoSubmitState = {
+                isRunning: true,
+                totalClicks: request.total,
+                clicksRemaining: request.total,
+                minInterval: request.minInterval,
+                maxInterval: request.maxInterval,
+                timeoutId: null
+            };
+            runAutoSubmitCycle();
+            return;
+        }
+
+        if (request.action === 'stopAutoSubmit') {
+            stopAutoSubmit('Stopped');
             return;
         }
 
@@ -174,37 +247,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             let lighterPortfolioValue = '0', variationalPortfolioValue = '0';
             try {
                 if(lighterTab) {
-                    const [positions, value] = await Promise.all([executeOnTab(lighterTab.id, 'lighter.js', 'getPositions', [request.coin]), executeOnTab(lighterTab.id, 'lighter.js', 'getPortfolioValue')]);
-                    if(positions) lighterData = positions.find(p => p.coin === request.coin);
-                    lighterPortfolioValue = value;
+                    [lighterData, lighterPortfolioValue] = await Promise.all([
+                        executeOnTab(lighterTab.id, 'lighter.js', 'getPositions', [request.coin]),
+                        executeOnTab(lighterTab.id, 'lighter.js', 'getPortfolioValue')
+                    ]);
                 }
                 if(variationalTab) {
-                    const [positions, value] = await Promise.all([executeOnTab(variationalTab.id, 'variational.js', 'getPositions', [request.coin]), executeOnTab(variationalTab.id, 'variational.js', 'getPortfolioValue')]);
-                    if(positions) variationalData = positions.find(p => p.coin === request.coin);
-                    variationalPortfolioValue = value;
+                   [variationalData, variationalPortfolioValue] = await Promise.all([
+                        executeOnTab(variationalTab.id, 'variational.js', 'getPositions', [request.coin]),
+                        executeOnTab(variationalTab.id, 'variational.js', 'getPortfolioValue')
+                    ]);
                 }
             } catch (error) { console.error("정보 수집 오류:", error); }
-            chrome.runtime.sendMessage({ action: 'updateDisplay', lighterData, variationalData, lighterPortfolioValue, variationalPortfolioValue });
+            chrome.runtime.sendMessage({ action: 'updateDisplay', lighterData: lighterData && lighterData[0], variationalData: variationalData && variationalData[0], lighterPortfolioValue, variationalPortfolioValue });
         
         } else if (request.action === 'executeHedgeOrder') {
             if (lighterTab) {
                 if (request.orderbookIndex === 'X') {
                     await executeOnTab(lighterTab.id, 'lighter.js', 'clickMarketButton');
-                    await new Promise(resolve => setTimeout(resolve, 100));
                 }
                 await executeOnTab(lighterTab.id, 'lighter.js', 'selectOrderType', [request.lighterOrder]);
-                await new Promise(resolve => setTimeout(resolve, 150));
                 if (request.orderbookIndex !== 'X') {
-                    const index = parseInt(request.orderbookIndex, 10);
-                    await executeOnTab(lighterTab.id, 'lighter.js', 'clickOrderBookPrice', [request.lighterOrder, index]);
+                    await executeOnTab(lighterTab.id, 'lighter.js', 'clickOrderBookPrice', [request.lighterOrder, parseInt(request.orderbookIndex, 10)]);
                 }
             }
             if (variationalTab) await executeOnTab(variationalTab.id, 'variational.js', 'selectOrderType', [request.variationalOrder]);
         
         } else if (request.action === 'updateOrderbookPrice') {
             if (lighterTab && request.orderbookIndex !== 'X') {
-                const index = parseInt(request.orderbookIndex, 10);
-                await executeOnTab(lighterTab.id, 'lighter.js', 'clickOrderBookPrice', [request.lighterOrder, index]);
+                await executeOnTab(lighterTab.id, 'lighter.js', 'clickOrderBookPrice', [request.lighterOrder, parseInt(request.orderbookIndex, 10)]);
             }
         
         } else if (request.action === 'setQuantity') {
@@ -222,8 +293,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (variationalTab) executeOnTab(variationalTab.id, 'variational.js', 'clickSubmitButton');
         
         } else if (request.action === 'setCoin') {
-            if (lighterTab) chrome.tabs.update(lighterTab.id, { url: `https://app.lighter.xyz/trade/${request.coin}` });
-            if (variationalTab) chrome.tabs.update(variationalTab.id, { url: `https://omni.variational.io/perpetual/${request.coin}` });
+            const coin = request.coin.toUpperCase();
+            if (lighterTab) chrome.tabs.update(lighterTab.id, { url: `https://app.lighter.xyz/trade/${coin}` });
+            if (variationalTab) chrome.tabs.update(variationalTab.id, { url: `https://omni.variational.io/perpetual/${coin}` });
         }
     })();
     return true; 
